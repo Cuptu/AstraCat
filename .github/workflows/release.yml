@@ -1,0 +1,98 @@
+name: Build Windows release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "SemVer without the leading v"
+        required: true
+        default: "0.1.0-dev"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: Package Windows x64
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.400
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Resolve package version
+        shell: powershell
+        run: |
+          if ($env:GITHUB_REF_TYPE -eq "tag") {
+            $version = $env:GITHUB_REF_NAME.TrimStart("v")
+          } else {
+            $version = "${{ inputs.version }}"
+          }
+          if ($version -notmatch '^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$') {
+            throw "Invalid SemVer: $version"
+          }
+          "ASTRACAT_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Audit repository contents
+        shell: powershell
+        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\audit-repository.ps1
+
+      - name: Restore locked dependencies
+        run: dotnet restore AstraCat.csproj -r win-x64 --locked-mode
+
+      - name: Build and check worker
+        shell: powershell
+        run: |
+          dotnet build AstraCat.csproj -c Release --no-restore -p:ContinuousIntegrationBuild=true
+          python -m py_compile engines/asr_worker.py
+
+      - name: Download verified native dependencies
+        shell: powershell
+        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\prepare-native-deps.ps1
+
+      - name: Install Inno Setup
+        shell: powershell
+        run: choco install innosetup -y --no-progress
+
+      - name: Build installer and portable package
+        shell: powershell
+        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\package-release.ps1 -Version $env:ASTRACAT_VERSION -FfmpegDir .\runtime\tools\ffmpeg
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AstraCat-v${{ env.ASTRACAT_VERSION }}-win-x64
+          path: |
+            dist/AstraCat-v${{ env.ASTRACAT_VERSION }}-Setup.exe
+            dist/AstraCat-v${{ env.ASTRACAT_VERSION }}-win-x64.zip
+            dist/AstraCat-v${{ env.ASTRACAT_VERSION }}-SHA256.txt
+          if-no-files-found: error
+
+      - name: Create GitHub prerelease
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/AstraCat-v${{ env.ASTRACAT_VERSION }}-Setup.exe
+            dist/AstraCat-v${{ env.ASTRACAT_VERSION }}-win-x64.zip
+            dist/AstraCat-v${{ env.ASTRACAT_VERSION }}-SHA256.txt
+          generate_release_notes: true
+          prerelease: true
+          fail_on_unmatched_files: true

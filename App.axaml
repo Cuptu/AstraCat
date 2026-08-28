@@ -1,0 +1,686 @@
+<Application x:Class="AstraCat.App"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+             RequestedThemeVariant="Light">
+  <Application.Resources>
+    <!-- Shared typography for application controls and code-oriented fields. -->
+    <FontFamily x:Key="AppUiFontFamily">Inter, PingFang SC, Hiragino Sans GB, Microsoft YaHei, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif</FontFamily>
+    <FontFamily x:Key="AppCodeFontFamily">JetBrains Mono, Cascadia Code, Fira Code, Consolas, Menlo, Monaco, Courier New, monospace</FontFamily>
+
+    <!-- Global ComboBox Dropdown Overrides: Pure White background, 18px Squircle corner radius, 1px border -->
+    <SolidColorBrush x:Key="ComboBoxDropDownBackground" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="ComboBoxDropDownBorderBrush" Color="#E5E7EB" />
+    <CornerRadius x:Key="OverlayCornerRadius">18</CornerRadius>
+    <CornerRadius x:Key="ControlCornerRadius">18</CornerRadius>
+    <Thickness x:Key="ComboBoxDropdownBorderThickness">1</Thickness>
+    <Thickness x:Key="ComboBoxDropdownMargin">10</Thickness>
+    <Thickness x:Key="ComboBoxDropdownPadding">6</Thickness>
+
+    <!-- Compact selection theme shared by all combo-box items. -->
+    <ControlTheme x:Key="{x:Type ComboBoxItem}" TargetType="ComboBoxItem">
+      <Setter Property="MinHeight" Value="36" />
+      <Setter Property="Height" Value="36" />
+      <Setter Property="Margin" Value="6,2" />
+      <Setter Property="Padding" Value="10,0" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="#18181B" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border x:Name="ItemBackground"
+                  Background="{TemplateBinding Background}"
+                  CornerRadius="{TemplateBinding CornerRadius}"
+                  Padding="{TemplateBinding Padding}">
+            <Border.Transitions>
+              <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.12" />
+              </Transitions>
+            </Border.Transitions>
+            <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+              <ContentPresenter x:Name="PART_ContentPresenter"
+                                Content="{TemplateBinding Content}"
+                                ContentTemplate="{TemplateBinding ContentTemplate}"
+                                VerticalContentAlignment="Center"
+                                TextElement.FontSize="13"
+                                TextElement.FontWeight="SemiBold"
+                                TextElement.Foreground="#18181B" />
+              <icons:MaterialIcon Grid.Column="1" Kind="Check" Width="15" Height="15" Foreground="#2563EB"
+                                  Margin="8,0,4,0"
+                                  HorizontalAlignment="Right" VerticalAlignment="Center"
+                                  IsVisible="{Binding IsSelected, RelativeSource={RelativeSource TemplatedParent}}" />
+            </Grid>
+          </Border>
+        </ControlTemplate>
+      </Setter>
+      <!-- Hover state: soft neutral light grey, 10px rounded pill -->
+      <Style Selector="^:pointerover /template/ Border#ItemBackground">
+        <Setter Property="Background" Value="#F2F3F5" />
+      </Style>
+      <!-- Keep selected rows neutral while the checkmark carries the accent color. -->
+      <Style Selector="^:selected /template/ Border#ItemBackground">
+        <Setter Property="Background" Value="#F4F5F7" />
+      </Style>
+      <Style Selector="^:selected /template/ ContentPresenter#PART_ContentPresenter">
+        <Setter Property="TextElement.Foreground" Value="#18181B" />
+        <Setter Property="TextElement.FontWeight" Value="SemiBold" />
+      </Style>
+      <Style Selector="^:selected:pointerover /template/ Border#ItemBackground">
+        <Setter Property="Background" Value="#EBEDF0" />
+      </Style>
+    </ControlTheme>
+
+    <ControlTheme x:Key="AstraComboBoxItemTheme" TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}" />
+
+    <!-- The narrow idle track expands on interaction without changing layout. -->
+    <ControlTheme x:Key="{x:Type ScrollBar}" TargetType="ScrollBar">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="ShowDelay" Value="0:0:0.25" />
+      <Setter Property="HideDelay" Value="0:0:0.35" />
+      <Style Selector="^ /template/ RepeatButton.repeattrack">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="RenderTransform" Value="none" />
+        <Setter Property="Transitions" Value="{x:Null}" />
+        <Setter Property="Template">
+          <ControlTemplate>
+            <Border Background="{TemplateBinding Background}" />
+          </ControlTemplate>
+        </Setter>
+      </Style>
+      <Style Selector="^ /template/ RepeatButton.repeattrack:pointerover,
+                       ^ /template/ RepeatButton.repeattrack:pressed">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="RenderTransform" Value="none" />
+      </Style>
+      <Style Selector="^:disabled">
+        <Setter Property="Opacity" Value="0.45" />
+      </Style>
+      <Style Selector="^:vertical">
+        <Setter Property="MinWidth" Value="10" />
+        <Setter Property="Width" Value="10" />
+        <Setter Property="HorizontalAlignment" Value="Right" />
+        <Setter Property="Template">
+          <ControlTemplate>
+            <Border Background="{TemplateBinding Background}" UseLayoutRounding="True" ClipToBounds="True">
+              <Track IsDirectionReversed="True"
+                     Maximum="{TemplateBinding Maximum}"
+                     Minimum="{TemplateBinding Minimum}"
+                     Orientation="{TemplateBinding Orientation}"
+                     DeferThumbDrag="{TemplateBinding ScrollViewer.IsDeferredScrollingEnabled}"
+                     ViewportSize="{TemplateBinding ViewportSize}"
+                     Value="{TemplateBinding Value, Mode=TwoWay}">
+                <Track.DecreaseButton>
+                  <RepeatButton Name="PART_PageUpButton" Classes="repeattrack" />
+                </Track.DecreaseButton>
+                <Track.IncreaseButton>
+                  <RepeatButton Name="PART_PageDownButton" Classes="repeattrack" />
+                </Track.IncreaseButton>
+                <Thumb Name="thumb" MinHeight="24">
+                  <Thumb.Template>
+                    <ControlTemplate>
+                      <Panel Background="Transparent">
+                        <Border Name="ThumbBarVertical" Width="5" Margin="0,2,2,2"
+                                HorizontalAlignment="Right" Background="#52525B" CornerRadius="3">
+                          <Border.Transitions>
+                            <Transitions>
+                              <BrushTransition Property="Background" Duration="0:0:0.15" />
+                              <DoubleTransition Property="Width" Duration="0:0:0.1" />
+                            </Transitions>
+                          </Border.Transitions>
+                        </Border>
+                      </Panel>
+                    </ControlTemplate>
+                  </Thumb.Template>
+                </Thumb>
+              </Track>
+            </Border>
+          </ControlTemplate>
+        </Setter>
+      </Style>
+      <Style Selector="^:vertical /template/ Thumb:pointerover Border#ThumbBarVertical">
+        <Setter Property="Background" Value="#3F3F46" />
+        <Setter Property="Width" Value="6" />
+      </Style>
+      <Style Selector="^:horizontal">
+        <Setter Property="MinHeight" Value="10" />
+        <Setter Property="Height" Value="10" />
+        <Setter Property="VerticalAlignment" Value="Bottom" />
+        <Setter Property="Template">
+          <ControlTemplate>
+            <Border Background="{TemplateBinding Background}" UseLayoutRounding="True" ClipToBounds="True">
+              <Track IsDirectionReversed="False"
+                     Maximum="{TemplateBinding Maximum}"
+                     Minimum="{TemplateBinding Minimum}"
+                     Orientation="{TemplateBinding Orientation}"
+                     DeferThumbDrag="{TemplateBinding ScrollViewer.IsDeferredScrollingEnabled}"
+                     ViewportSize="{TemplateBinding ViewportSize}"
+                     Value="{TemplateBinding Value, Mode=TwoWay}">
+                <Track.DecreaseButton>
+                  <RepeatButton Name="PART_PageUpButton" Classes="repeattrack" />
+                </Track.DecreaseButton>
+                <Track.IncreaseButton>
+                  <RepeatButton Name="PART_PageDownButton" Classes="repeattrack" />
+                </Track.IncreaseButton>
+                <Thumb Name="thumb" MinWidth="24">
+                  <Thumb.Template>
+                    <ControlTemplate>
+                      <Panel Background="Transparent">
+                        <Border Name="ThumbBarHorizontal" Height="5" Margin="2,0,2,2"
+                                VerticalAlignment="Bottom" Background="#52525B" CornerRadius="3">
+                          <Border.Transitions>
+                            <Transitions>
+                              <BrushTransition Property="Background" Duration="0:0:0.15" />
+                              <DoubleTransition Property="Height" Duration="0:0:0.1" />
+                            </Transitions>
+                          </Border.Transitions>
+                        </Border>
+                      </Panel>
+                    </ControlTemplate>
+                  </Thumb.Template>
+                </Thumb>
+              </Track>
+            </Border>
+          </ControlTemplate>
+        </Setter>
+      </Style>
+      <Style Selector="^:horizontal /template/ Thumb:pointerover Border#ThumbBarHorizontal">
+        <Setter Property="Background" Value="#3F3F46" />
+        <Setter Property="Height" Value="6" />
+      </Style>
+    </ControlTheme>
+
+    <!-- Horizontal slider with independent track halves and a larger thumb hit area. -->
+    <ControlTheme x:Key="AstraSliderDecreaseTheme" TargetType="RepeatButton">
+      <Setter Property="Focusable" Value="False" />
+      <Setter Property="IsTabStop" Value="False" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Template">
+        <ControlTemplate TargetType="RepeatButton">
+          <Border Height="20" VerticalAlignment="Center"
+                  Background="{TemplateBinding Background}" CornerRadius="10,0,0,10" />
+        </ControlTemplate>
+      </Setter>
+    </ControlTheme>
+
+    <ControlTheme x:Key="AstraSliderIncreaseTheme" TargetType="RepeatButton">
+      <Setter Property="Focusable" Value="False" />
+      <Setter Property="IsTabStop" Value="False" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Template">
+        <ControlTemplate TargetType="RepeatButton">
+          <Border Background="Transparent" />
+        </ControlTemplate>
+      </Setter>
+    </ControlTheme>
+
+    <ControlTheme x:Key="AstraSliderThumbTheme" TargetType="Thumb">
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Template">
+        <ControlTemplate TargetType="Thumb">
+          <Grid Width="32" Height="32" Background="Transparent" UseLayoutRounding="False">
+            <!-- The thumb owns its complete ring so Value=0 cannot clip it. -->
+            <Border x:Name="SliderThumbRing" Width="20" Height="20" CornerRadius="999"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Background="#3399F3" />
+            <Border x:Name="SliderThumbVisual" Width="12" Height="12" CornerRadius="999"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Background="#FFFFFF" BorderThickness="0" />
+          </Grid>
+        </ControlTemplate>
+      </Setter>
+    </ControlTheme>
+
+    <ControlTheme x:Key="AstraSliderTheme" TargetType="Slider">
+      <Setter Property="MinWidth" Value="40" />
+      <Setter Property="MinHeight" Value="20" />
+      <Setter Property="Template">
+        <ControlTemplate TargetType="Slider">
+          <Grid x:Name="SliderLayoutRoot" Margin="{TemplateBinding Padding}" Background="Transparent"
+                UseLayoutRounding="False"
+                RowDefinitions="Auto,Auto,Auto">
+            <!-- A single uninterrupted base track prevents the unfilled half from
+                 splitting around the Thumb at any DPI or fractional value. -->
+            <Border Grid.Row="1" Height="20" Margin="8,0" VerticalAlignment="Center"
+                    Background="#E3E6EA" CornerRadius="10" />
+            <Track x:Name="PART_Track" Grid.Row="1" Orientation="Horizontal" MinHeight="20"
+                   UseLayoutRounding="False"
+                   Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}"
+                   Value="{TemplateBinding Value, Mode=TwoWay}"
+                   IsDirectionReversed="{TemplateBinding IsDirectionReversed}">
+              <Track.DecreaseButton>
+                <RepeatButton x:Name="PART_DecreaseButton" Height="20" Margin="8,0,-16,0"
+                              HorizontalAlignment="Stretch"
+                              Theme="{StaticResource AstraSliderDecreaseTheme}">
+                  <RepeatButton.Background>
+                    <SolidColorBrush Color="#3399F3" />
+                  </RepeatButton.Background>
+                </RepeatButton>
+              </Track.DecreaseButton>
+              <Track.IncreaseButton>
+                <RepeatButton x:Name="PART_IncreaseButton" Margin="0"
+                              Theme="{StaticResource AstraSliderIncreaseTheme}" />
+              </Track.IncreaseButton>
+              <Thumb x:Name="thumb" Margin="0" Theme="{StaticResource AstraSliderThumbTheme}" />
+            </Track>
+          </Grid>
+        </ControlTemplate>
+      </Setter>
+      <Style Selector="^:disabled /template/ Grid#SliderLayoutRoot">
+        <Setter Property="Opacity" Value="0.45" />
+      </Style>
+      <Style Selector="^[Value=0] /template/ RepeatButton#PART_DecreaseButton">
+        <Setter Property="IsVisible" Value="False" />
+      </Style>
+    </ControlTheme>
+
+  </Application.Resources>
+  <Application.Styles>
+    <FluentTheme>
+      <FluentTheme.Palettes>
+        <ColorPaletteResources x:Key="Light" Accent="#3399F3" RegionColor="#FFFFFF" />
+      </FluentTheme.Palettes>
+    </FluentTheme>
+    <StyleInclude Source="avares://Avalonia.Controls.ColorPicker/Themes/Fluent/Fluent.xaml" />
+    <icons:MaterialIconStyles />
+
+    <Style Selector="Button">
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="PopupRoot">
+      <Setter Property="TransparencyLevelHint" Value="Transparent" />
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+    <Style Selector="OverlayPopupHost">
+      <Setter Property="Background" Value="Transparent" />
+    </Style>
+
+    <!-- Shared entrance animation for popup visual roots. -->
+    <Style Selector="PopupRoot > Border, OverlayPopupHost > Border">
+      <Setter Property="RenderTransformOrigin" Value="50%, 0%" />
+      <Setter Property="RenderTransform">
+        <TransformGroup>
+          <ScaleTransform ScaleX="1" ScaleY="1" />
+          <TranslateTransform X="0" Y="0" />
+        </TransformGroup>
+      </Setter>
+      <Style.Animations>
+        <Animation Duration="0:0:0.20" FillMode="Forward" Easing="0.16, 1.0, 0.3, 1.0">
+          <KeyFrame Cue="0%">
+            <Setter Property="Opacity" Value="0.0" />
+            <Setter Property="ScaleTransform.ScaleX" Value="0.88" />
+            <Setter Property="ScaleTransform.ScaleY" Value="0.88" />
+            <Setter Property="TranslateTransform.Y" Value="-10" />
+          </KeyFrame>
+          <KeyFrame Cue="100%">
+            <Setter Property="Opacity" Value="1.0" />
+            <Setter Property="ScaleTransform.ScaleX" Value="1.0" />
+            <Setter Property="ScaleTransform.ScaleY" Value="1.0" />
+            <Setter Property="TranslateTransform.Y" Value="0" />
+          </KeyFrame>
+        </Animation>
+      </Style.Animations>
+    </Style>
+
+    <Style Selector="Slider:horizontal">
+      <Setter Property="Theme" Value="{StaticResource AstraSliderTheme}" />
+    </Style>
+
+    <Style Selector="ScrollViewer">
+      <Setter Property="AllowAutoHide" Value="True" />
+    </Style>
+    <Style Selector="ScrollBar[AllowAutoHide=False] /template/ Thumb /template/ Border#ThumbBarVertical,
+                     ScrollBar[IsExpanded=True] /template/ Thumb /template/ Border#ThumbBarVertical,
+                     ScrollBar:pointerover /template/ Thumb /template/ Border#ThumbBarVertical,
+                     ScrollBar /template/ Thumb:pressed /template/ Border#ThumbBarVertical,
+                     ScrollViewer[IsExpanded=True] /template/ ScrollBar /template/ Thumb /template/ Border#ThumbBarVertical">
+      <Setter Property="Background" Value="#7F858E" />
+      <Setter Property="Width" Value="7" />
+    </Style>
+    <Style Selector="ScrollBar[AllowAutoHide=False] /template/ Thumb /template/ Border#ThumbBarHorizontal,
+                     ScrollBar[IsExpanded=True] /template/ Thumb /template/ Border#ThumbBarHorizontal,
+                     ScrollBar:pointerover /template/ Thumb /template/ Border#ThumbBarHorizontal,
+                     ScrollBar /template/ Thumb:pressed /template/ Border#ThumbBarHorizontal,
+                     ScrollViewer[IsExpanded=True] /template/ ScrollBar /template/ Thumb /template/ Border#ThumbBarHorizontal">
+      <Setter Property="Background" Value="#7F858E" />
+      <Setter Property="Height" Value="7" />
+    </Style>
+
+    <Style Selector="ComboBoxItem">
+      <Setter Property="MinHeight" Value="36" />
+      <Setter Property="Height" Value="36" />
+      <Setter Property="Margin" Value="6,2" />
+      <Setter Property="Padding" Value="10,0" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="#18181B" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border x:Name="ItemBackground"
+                  Background="{TemplateBinding Background}"
+                  CornerRadius="{TemplateBinding CornerRadius}"
+                  Padding="{TemplateBinding Padding}">
+            <Border.Transitions>
+              <Transitions>
+                <BrushTransition Property="Background" Duration="0:0:0.12" />
+              </Transitions>
+            </Border.Transitions>
+            <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+              <ContentPresenter x:Name="PART_ContentPresenter"
+                                Content="{TemplateBinding Content}"
+                                ContentTemplate="{TemplateBinding ContentTemplate}"
+                                VerticalContentAlignment="Center"
+                                TextElement.FontSize="13"
+                                TextElement.FontWeight="SemiBold"
+                                TextElement.Foreground="#18181B" />
+              <icons:MaterialIcon Grid.Column="1" Kind="Check" Width="15" Height="15" Foreground="#2563EB"
+                                  Margin="8,0,4,0"
+                                  HorizontalAlignment="Right" VerticalAlignment="Center"
+                                  IsVisible="{Binding IsSelected, RelativeSource={RelativeSource TemplatedParent}}" />
+            </Grid>
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="ComboBoxItem:pointerover /template/ Border#ItemBackground">
+      <Setter Property="Background" Value="#F2F3F5" />
+    </Style>
+    <Style Selector="ComboBoxItem:selected /template/ Border#ItemBackground">
+      <Setter Property="Background" Value="#F4F5F7" />
+    </Style>
+    <Style Selector="ComboBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="TextElement.Foreground" Value="#18181B" />
+      <Setter Property="TextElement.FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="ComboBoxItem:selected:pointerover /template/ Border#ItemBackground">
+      <Setter Property="Background" Value="#EBEDF0" />
+    </Style>
+
+    <Style Selector="ComboBox.settingSelect">
+      <Setter Property="Height" Value="34" />
+      <Setter Property="MinWidth" Value="112" />
+      <Setter Property="Padding" Value="14,0,10,0" />
+      <Setter Property="FontSize" Value="12.5" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="#18181B" />
+      <Setter Property="Background" Value="#F1F1F3" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="17" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+      <Setter Property="ItemContainerTheme" Value="{StaticResource AstraComboBoxItemTheme}" />
+    </Style>
+    <Style Selector="ComboBox.settingSelect /template/ Border#Background">
+      <Setter Property="Background" Value="#F1F1F3" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="17" />
+    </Style>
+    <Style Selector="ComboBox.settingSelect:pointerover /template/ Border#Background">
+      <Setter Property="Background" Value="#E8E8EB" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="ComboBox.settingSelect:focus /template/ Border#Background, ComboBox.settingSelect:focus-within /template/ Border#Background">
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="ComboBox.settingSelect:pressed /template/ Border#Background, ComboBox.settingSelect:dropdownopen /template/ Border#Background">
+      <Setter Property="Background" Value="#E2E2E6" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <!-- Global text-box defaults. -->
+    <Style Selector="TextBox">
+      <Setter Property="CornerRadius" Value="18" />
+      <Setter Property="MinHeight" Value="36" />
+      <Setter Property="Padding" Value="14,0" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Background" Value="#FFFFFF" />
+      <Setter Property="Foreground" Value="#18181B" />
+      <Setter Property="BorderBrush" Value="#E5E7EB" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="FontFamily" Value="{StaticResource AppUiFontFamily}" />
+    </Style>
+    <Style Selector="TextBox /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="#FFFFFF" />
+      <Setter Property="CornerRadius" Value="18" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
+          <BrushTransition Property="Background" Duration="0:0:0.15" />
+        </Transitions>
+      </Setter>
+    </Style>
+    <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="#FFFFFF" />
+      <Setter Property="BorderBrush" Value="#D1D5DB" />
+    </Style>
+    <Style Selector="TextBox:focus /template/ Border#PART_BorderElement, TextBox:focus-within /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="#FFFFFF" />
+      <Setter Property="BorderBrush" Value="#3399F3" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="18" />
+    </Style>
+    <Style Selector="TextBox[AcceptsReturn=True]">
+      <Setter Property="CornerRadius" Value="14" />
+      <Setter Property="Padding" Value="14,10" />
+      <Setter Property="VerticalContentAlignment" Value="Top" />
+    </Style>
+    <Style Selector="TextBox[AcceptsReturn=True] /template/ Border#PART_BorderElement">
+      <Setter Property="CornerRadius" Value="14" />
+    </Style>
+    <Style Selector="TextBox[AcceptsReturn=True]:focus /template/ Border#PART_BorderElement, TextBox[AcceptsReturn=True]:focus-within /template/ Border#PART_BorderElement">
+      <Setter Property="CornerRadius" Value="14" />
+    </Style>
+    <Style Selector="TextBox.transcriptionLog">
+      <Setter Property="Background" Value="#171A20" />
+      <Setter Property="Foreground" Value="#DCE4EE" />
+      <Setter Property="BorderBrush" Value="#2B313A" />
+    </Style>
+    <Style Selector="TextBox.transcriptionLog /template/ Border#PART_BorderElement,
+                     TextBox.transcriptionLog:pointerover /template/ Border#PART_BorderElement,
+                     TextBox.transcriptionLog:focus /template/ Border#PART_BorderElement,
+                     TextBox.transcriptionLog:focus-within /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="#171A20" />
+      <Setter Property="BorderBrush" Value="#2B313A" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="14" />
+    </Style>
+
+    <!-- Compact editable cells for subtitle tables. -->
+    <Style Selector="TextBox.subtitleCell">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="FontSize" Value="13.5" />
+      <Setter Property="FontWeight" Value="Normal" />
+      <Setter Property="Foreground" Value="#18181B" />
+      <Setter Property="Padding" Value="10,8" />
+    </Style>
+    <Style Selector="TextBox.subtitleCell /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
+    <Style Selector="TextBox.subtitleCell:pointerover /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="#F8F9FA" />
+      <Setter Property="BorderBrush" Value="#E5E7EB" />
+    </Style>
+    <Style Selector="TextBox.subtitleCell:focus /template/ Border#PART_BorderElement, TextBox.subtitleCell:focus-within /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="#FFFFFF" />
+      <Setter Property="BorderBrush" Value="#2563EB" />
+      <Setter Property="BorderThickness" Value="1.5" />
+    </Style>
+    <!-- ============================================================ -->
+    <!-- Dropdown and popover entrance motion. -->
+    <!-- ============================================================ -->
+
+    <!-- ComboBox Dropdown Popups -->
+    <Style Selector="Border#PopupBorder, ComboBox /template/ Border#PopupBorder">
+      <Setter Property="Background" Value="#FFFFFF" />
+      <Setter Property="BorderBrush" Value="#E5E7EB" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="18" />
+      <Setter Property="Padding" Value="0,4" />
+      <Setter Property="Margin" Value="10" />
+      <Setter Property="MinWidth" Value="0" />
+      <Setter Property="BoxShadow" Value="0 12 36 0 #18000000, 0 2 8 0 #0D000000, 0 1 2 0 #05000000" />
+      <Setter Property="RenderTransformOrigin" Value="50%, 0%" />
+      <Setter Property="RenderTransform">
+        <TransformGroup>
+          <ScaleTransform ScaleX="1" ScaleY="1" />
+          <TranslateTransform X="0" Y="0" />
+        </TransformGroup>
+      </Setter>
+      <Style.Animations>
+        <Animation Duration="0:0:0.18" FillMode="Forward" Easing="0.16, 1.0, 0.3, 1.0">
+          <KeyFrame Cue="0%">
+            <Setter Property="Opacity" Value="0.0" />
+            <Setter Property="ScaleTransform.ScaleX" Value="0.92" />
+            <Setter Property="ScaleTransform.ScaleY" Value="0.92" />
+            <Setter Property="TranslateTransform.Y" Value="-8" />
+          </KeyFrame>
+          <KeyFrame Cue="100%">
+            <Setter Property="Opacity" Value="1.0" />
+            <Setter Property="ScaleTransform.ScaleX" Value="1.0" />
+            <Setter Property="ScaleTransform.ScaleY" Value="1.0" />
+            <Setter Property="TranslateTransform.Y" Value="0" />
+          </KeyFrame>
+        </Animation>
+      </Style.Animations>
+    </Style>
+
+    <!-- ContextMenu & Flyout Popups -->
+    <Style Selector="MenuFlyoutPresenter, ContextMenu">
+      <Setter Property="Background" Value="#FFFFFF" />
+      <Setter Property="BorderBrush" Value="#E5E7EB" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="18" />
+      <Setter Property="Padding" Value="0,4" />
+      <Setter Property="MinWidth" Value="140" />
+    </Style>
+    <Style Selector="MenuFlyoutPresenter /template/ Border#LayoutRoot, ContextMenu /template/ Border#LayoutRoot">
+      <Setter Property="Background" Value="#FFFFFF" />
+      <Setter Property="BorderBrush" Value="#E5E7EB" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Padding" Value="0,4" />
+      <Setter Property="BoxShadow" Value="0 12 36 0 #18000000, 0 2 8 0 #0D000000, 0 1 2 0 #05000000" />
+      <Setter Property="CornerRadius" Value="18" />
+      <Setter Property="Margin" Value="0" />
+      <Setter Property="RenderTransformOrigin" Value="50%, 0%" />
+      <Setter Property="RenderTransform">
+        <TransformGroup>
+          <ScaleTransform ScaleX="1" ScaleY="1" />
+          <TranslateTransform X="0" Y="0" />
+        </TransformGroup>
+      </Setter>
+      <Style.Animations>
+        <Animation Duration="0:0:0.18" FillMode="Forward" Easing="0.16, 1.0, 0.3, 1.0">
+          <KeyFrame Cue="0%">
+            <Setter Property="Opacity" Value="0.0" />
+            <Setter Property="ScaleTransform.ScaleX" Value="0.92" />
+            <Setter Property="ScaleTransform.ScaleY" Value="0.92" />
+            <Setter Property="TranslateTransform.Y" Value="-8" />
+          </KeyFrame>
+          <KeyFrame Cue="100%">
+            <Setter Property="Opacity" Value="1.0" />
+            <Setter Property="ScaleTransform.ScaleX" Value="1.0" />
+            <Setter Property="ScaleTransform.ScaleY" Value="1.0" />
+            <Setter Property="TranslateTransform.Y" Value="0" />
+          </KeyFrame>
+        </Animation>
+      </Style.Animations>
+    </Style>
+
+    <Style Selector="FlyoutPresenter">
+      <Setter Property="Background" Value="#FFFFFF" />
+      <Setter Property="BorderBrush" Value="#E5E7EB" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="18" />
+      <Setter Property="Padding" Value="0,4" />
+    </Style>
+    <Style Selector="FlyoutPresenter /template/ Border#LayoutRoot">
+      <Setter Property="BoxShadow" Value="0 12 36 0 #18000000, 0 2 8 0 #0D000000, 0 1 2 0 #05000000" />
+      <Setter Property="CornerRadius" Value="18" />
+      <Setter Property="Margin" Value="10" />
+      <Setter Property="RenderTransformOrigin" Value="50%, 0%" />
+      <Setter Property="RenderTransform">
+        <TransformGroup>
+          <ScaleTransform ScaleX="1" ScaleY="1" />
+          <TranslateTransform X="0" Y="0" />
+        </TransformGroup>
+      </Setter>
+      <Style.Animations>
+        <Animation Duration="0:0:0.18" FillMode="Forward" Easing="0.16, 1.0, 0.3, 1.0">
+          <KeyFrame Cue="0%">
+            <Setter Property="Opacity" Value="0.0" />
+            <Setter Property="ScaleTransform.ScaleX" Value="0.92" />
+            <Setter Property="ScaleTransform.ScaleY" Value="0.92" />
+            <Setter Property="TranslateTransform.Y" Value="-8" />
+          </KeyFrame>
+          <KeyFrame Cue="100%">
+            <Setter Property="Opacity" Value="1.0" />
+            <Setter Property="ScaleTransform.ScaleX" Value="1.0" />
+            <Setter Property="ScaleTransform.ScaleY" Value="1.0" />
+            <Setter Property="TranslateTransform.Y" Value="0" />
+          </KeyFrame>
+        </Animation>
+      </Style.Animations>
+    </Style>
+
+    <!-- Shared menu-item styling. -->
+    <Style Selector="MenuItem">
+      <Setter Property="Height" Value="36" />
+      <Setter Property="MinHeight" Value="36" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="#18181B" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Margin" Value="6,2" />
+      <Setter Property="Padding" Value="10,0" />
+    </Style>
+    <Style Selector="MenuItem /template/ ContentPresenter#PART_IconPresenter">
+      <Setter Property="Foreground" Value="#71717A" />
+      <Setter Property="Width" Value="16" />
+      <Setter Property="Height" Value="16" />
+      <Setter Property="Margin" Value="0,0,10,0" />
+    </Style>
+    <Style Selector="MenuItem:pointerover /template/ Border#PART_LayoutRoot">
+      <Setter Property="Background" Value="#F2F3F5" />
+    </Style>
+    <Style Selector="MenuItem:pointerover /template/ ContentPresenter#PART_IconPresenter">
+      <Setter Property="Foreground" Value="#3F3F46" />
+    </Style>
+    <Style Selector="MenuItem:pressed /template/ Border#PART_LayoutRoot">
+      <Setter Property="Background" Value="#E5E7EB" />
+    </Style>
+    <Style Selector="MenuItem.danger, MenuItem.destructive">
+      <Setter Property="Foreground" Value="#EF4444" />
+    </Style>
+    <Style Selector="MenuItem.danger /template/ ContentPresenter#PART_IconPresenter, MenuItem.destructive /template/ ContentPresenter#PART_IconPresenter">
+      <Setter Property="Foreground" Value="#EF4444" />
+    </Style>
+    <Style Selector="MenuItem.danger:pointerover /template/ Border#PART_LayoutRoot, MenuItem.destructive:pointerover /template/ Border#PART_LayoutRoot">
+      <Setter Property="Background" Value="#FEF2F2" />
+    </Style>
+  </Application.Styles>
+</Application>

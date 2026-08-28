@@ -1,0 +1,247 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+        xmlns:local="clr-namespace:AstraCat"
+        x:Class="AstraCat.SubtitleStyleEditorWindow"
+        x:CompileBindings="False"
+        Width="800" Height="680" MinWidth="720" MinHeight="600"
+        WindowStartupLocation="CenterOwner" Background="#F5F6F8"
+        SizeChanged="EditorWindow_OnSizeChanged"
+        Title="字幕样式编辑">
+  <Window.Styles>
+    <Style Selector="ToggleButton">
+      <Setter Property="Background" Value="#F1F1F3" />
+      <Setter Property="Foreground" Value="#2B313A" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="ToggleButton:pointerover">
+      <Setter Property="Background" Value="#E8E8EB" />
+    </Style>
+    <Style Selector="ToggleButton:checked">
+      <Setter Property="Background" Value="#3399F3" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="ToggleButton:checked:pointerover">
+      <Setter Property="Background" Value="#2987D9" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="NumericUpDown">
+      <Setter Property="CornerRadius" Value="21" />
+      <Setter Property="Background" Value="#F1F1F3" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="12,0" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="ComboBox.centeredValue">
+      <Setter Property="FontWeight" Value="Bold" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="ComboBox.centeredValue /template/ ContentPresenter">
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="TextElement.FontWeight" Value="Bold" />
+    </Style>
+    <Style Selector="ComboBox.centeredValue /template/ TextBox">
+      <Setter Property="TextAlignment" Value="Center" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="FontWeight" Value="Bold" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="0" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="Padding" Value="6,0" />
+    </Style>
+    <Style Selector="ComboBox.centeredValue /template/ TextBox /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="0" />
+    </Style>
+    <!-- Compensate for the drop-down arrow column so the editable font name is
+         visually centred in the whole pill, not only in the text column. -->
+    <Style Selector="ComboBox.fontValue /template/ TextBox">
+      <Setter Property="Padding" Value="40,0,0,0" />
+    </Style>
+    <Style Selector="ComboBox.centeredValue /template/ TextBox:pointerover /template/ Border#PART_BorderElement,
+                     ComboBox.centeredValue /template/ TextBox:focus /template/ Border#PART_BorderElement,
+                     ComboBox.centeredValue /template/ TextBox:focus-within /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="0" />
+    </Style>
+    <Style Selector="Button.centeredAction">
+      <Setter Property="FontWeight" Value="Bold" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+  </Window.Styles>
+
+  <Grid RowDefinitions="Auto,*,64">
+    <Grid x:Name="PreviewRegion" Grid.Row="0" Margin="22,10,22,8"
+          RowDefinitions="*,48" RowSpacing="8"
+          SizeChanged="PreviewRegion_OnSizeChanged">
+      <Border x:Name="PreviewHost" Grid.Row="0" HorizontalAlignment="Center" VerticalAlignment="Center"
+              CornerRadius="0" Background="#14171C" BorderThickness="0" ClipToBounds="True">
+        <Grid>
+        <local:MpvVideoHost x:Name="ExactPreviewVideoHost" IsVisible="False" />
+        <Viewbox Stretch="Uniform" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+        <Grid x:Name="VirtualVideoCanvas" Width="1920" Height="1080" Background="Transparent" ClipToBounds="True">
+          <!-- Real video frame screenshot -->
+          <Image x:Name="PreviewBackgroundImage" Width="1920" Height="1080" Stretch="Fill" />
+          
+          <!-- Subtitle render container with exact 1920x1080 resolution -->
+          <Grid x:Name="PreviewOverlayGrid" Width="1920" Height="1080">
+            <!-- Outline/Shadow Layer: 8-direction outline copies + shadow copy, generated in code -->
+            <Grid x:Name="PreviewOutlineLayer" ZIndex="5" IsHitTestVisible="False" IsVisible="False" />
+            <!-- Drag reference system: action-safe frame plus centre axes. -->
+            <Grid x:Name="PreviewGuideLayer" ZIndex="20" IsHitTestVisible="False">
+              <Border x:Name="SafeAreaGuide" Margin="96,54" BorderBrush="#99FFFFFF"
+                      BorderThickness="2" CornerRadius="3" IsVisible="False" />
+              <Border x:Name="VerticalSnapGuide" Width="2" HorizontalAlignment="Center"
+                      Background="#CC3399F3" IsVisible="False" />
+              <Border x:Name="HorizontalSnapGuide" Height="2" VerticalAlignment="Center"
+                      Background="#CC3399F3" IsVisible="False" />
+            </Grid>
+            <!-- Main Subtitle Text and its independently configurable background box -->
+            <Border x:Name="PreviewTextContainer" ZIndex="10" Background="Transparent" IsVisible="False"
+                    HorizontalAlignment="Center" VerticalAlignment="Bottom" Cursor="SizeAll"
+                    PointerPressed="PreviewText_OnPointerPressed"
+                    PointerMoved="PreviewText_OnPointerMoved" PointerReleased="PreviewText_OnPointerReleased"
+                    PointerCaptureLost="PreviewText_OnPointerCaptureLost">
+              <Grid>
+                <StackPanel x:Name="PreviewBoxLines" Spacing="0" IsVisible="False" />
+                <TextBlock x:Name="PreviewText" Text="AstraCat@样式预览"
+                           FontSize="48" Foreground="White" FontWeight="Bold" TextAlignment="Center"
+                           TextWrapping="Wrap" TextTrimming="None" />
+              </Grid>
+            </Border>
+          </Grid>
+        </Grid>
+        </Viewbox>
+        </Grid>
+      </Border>
+
+      <TextBox x:Name="PreviewTextEditor" Grid.Row="1" Height="48" Margin="0,8,0,0"
+               Text="AstraCat@样式预览" TextChanged="PreviewTextEditor_OnTextChanged"
+               Background="White" Foreground="#252B33" BorderBrush="#C9D0D8" BorderThickness="1"
+               CornerRadius="16" Padding="16,0" FontSize="16" VerticalContentAlignment="Center"
+               PlaceholderText="输入字幕样式预览文字" />
+    </Grid>
+
+    <ScrollViewer Grid.Row="1" Margin="22,0,22,0" VerticalScrollBarVisibility="Auto">
+      <Border Padding="18" Background="White" CornerRadius="12" BorderBrush="#E1E5EA" BorderThickness="1">
+        <StackPanel Spacing="14">
+          <TextBlock Text="文字样式" Foreground="#252B33" FontSize="12" FontWeight="SemiBold" />
+          <Grid ColumnDefinitions="*,100,160" ColumnSpacing="12" RowDefinitions="Auto,42" RowSpacing="6">
+            <TextBlock Text="字体" Foreground="#69737F" FontSize="10" />
+            <TextBlock Grid.Column="1" Text="字号" Foreground="#69737F" FontSize="10" />
+            <TextBlock Grid.Column="2" Text="字体颜色" Foreground="#69737F" FontSize="10" />
+            <ComboBox x:Name="FontCombo" Grid.Row="1" Classes="settingSelect centeredValue fontValue" IsEditable="True"
+                      PlaceholderText="选择系统字体" SelectionChanged="EditorCombo_OnChanged" />
+            <ComboBox x:Name="FontSizeCombo" Grid.Row="1" Grid.Column="1" Classes="settingSelect centeredValue"
+                      IsEditable="True" PlaceholderText="字号" SelectionChanged="EditorCombo_OnChanged" />
+            <local:CompactColorPicker x:Name="TextColorPicker" Grid.Row="1" Grid.Column="2"
+                                      HorizontalAlignment="Stretch" ColorChanged="EditorColorPicker_OnColorChanged" />
+          </Grid>
+          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+            <TextBlock Text="字形" Foreground="#69737F" FontSize="10" VerticalAlignment="Center" />
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+              <ToggleButton x:Name="BoldToggle" Width="42" Height="42" Click="EditorToggle_OnClick">
+                <TextBlock Text="B" Width="18" TextAlignment="Center" FontWeight="Bold" />
+              </ToggleButton>
+              <ToggleButton x:Name="ItalicToggle" Width="42" Height="42" Click="EditorToggle_OnClick">
+                <TextBlock Text="I" Width="18" TextAlignment="Center" FontWeight="SemiBold" FontStyle="Italic" />
+              </ToggleButton>
+              <ToggleButton x:Name="UnderlineToggle" Width="42" Height="42" Click="EditorToggle_OnClick">
+                <TextBlock Text="U" Width="18" TextAlignment="Center" TextDecorations="Underline" />
+              </ToggleButton>
+            </StackPanel>
+            <CheckBox x:Name="BoxedToggle" Grid.Column="2" Content="背景方框"
+                      VerticalAlignment="Center" FontWeight="SemiBold" Click="EditorToggle_OnClick" />
+          </Grid>
+          <Grid x:Name="BoxStylePanel" ColumnDefinitions="150,*,*" ColumnSpacing="16"
+                IsVisible="{Binding #BoxedToggle.IsChecked}">
+            <StackPanel Spacing="6">
+              <TextBlock Text="背景颜色" Foreground="#69737F" FontSize="10" />
+              <local:CompactColorPicker x:Name="BoxColorPicker" HorizontalAlignment="Stretch"
+                                        ColorChanged="EditorColorPicker_OnColorChanged" />
+            </StackPanel>
+            <Grid Grid.Column="1" RowDefinitions="Auto,34" ColumnDefinitions="*,58" RowSpacing="6">
+              <TextBlock Text="不透明度" Foreground="#69737F" FontSize="10" />
+              <TextBlock x:Name="BoxOpacityValueText" Grid.Column="1" HorizontalAlignment="Right" Foreground="#3399F3" />
+              <Slider x:Name="BoxOpacitySlider" Grid.Row="1" Grid.ColumnSpan="2" Minimum="0" Maximum="100"
+                      ValueChanged="EditorSlider_OnChanged" />
+            </Grid>
+            <Grid Grid.Column="2" RowDefinitions="Auto,34" ColumnDefinitions="*,58" RowSpacing="6">
+              <TextBlock Text="内边距 / 高度" Foreground="#69737F" FontSize="10" />
+              <TextBlock x:Name="BoxPaddingValueText" Grid.Column="1" HorizontalAlignment="Right" Foreground="#3399F3" />
+              <Slider x:Name="BoxPaddingSlider" Grid.Row="1" Grid.ColumnSpan="2" Minimum="0" Maximum="40"
+                      ValueChanged="EditorSlider_OnChanged" />
+            </Grid>
+          </Grid>
+
+          <Separator Background="#EAEBF0" />
+          <TextBlock Text="描边与阴影" Foreground="#252B33" FontSize="12" FontWeight="SemiBold" />
+          <Grid ColumnDefinitions="160,*,*" ColumnSpacing="16">
+            <StackPanel Spacing="6">
+              <TextBlock Text="描边颜色" Foreground="#69737F" FontSize="10" />
+              <local:CompactColorPicker x:Name="OutlineColorPicker" HorizontalAlignment="Stretch"
+                                        ColorChanged="EditorColorPicker_OnColorChanged" />
+            </StackPanel>
+            <Grid Grid.Column="1" RowDefinitions="Auto,34" ColumnDefinitions="*,64" RowSpacing="6">
+              <TextBlock Text="描边宽度" Foreground="#69737F" FontSize="10" />
+              <TextBlock x:Name="OutlineValueText" Grid.Column="1" HorizontalAlignment="Right" Foreground="#3399F3" />
+              <Slider x:Name="OutlineSlider" Grid.Row="1" Grid.ColumnSpan="2" Minimum="0" Maximum="8" ValueChanged="EditorSlider_OnChanged" />
+            </Grid>
+            <Grid Grid.Column="2" RowDefinitions="Auto,34" ColumnDefinitions="*,64" RowSpacing="6">
+              <TextBlock Text="阴影距离" Foreground="#69737F" FontSize="10" />
+              <TextBlock x:Name="ShadowValueText" Grid.Column="1" HorizontalAlignment="Right" Foreground="#3399F3" />
+              <Slider x:Name="ShadowSlider" Grid.Row="1" Grid.ColumnSpan="2" Minimum="0" Maximum="8" ValueChanged="EditorSlider_OnChanged" />
+            </Grid>
+          </Grid>
+
+          <Separator Background="#EAEBF0" />
+          <TextBlock Text="位置与对齐" Foreground="#252B33" FontSize="12" FontWeight="SemiBold" />
+          <Grid ColumnDefinitions="*,*,180" ColumnSpacing="16">
+            <Grid RowDefinitions="Auto,34" ColumnDefinitions="*,72" RowSpacing="6">
+              <TextBlock Text="水平边距 (X 偏移)" Foreground="#69737F" FontSize="10" />
+              <TextBlock x:Name="HorizontalMarginValueText" Grid.Column="1" HorizontalAlignment="Right" Foreground="#3399F3" />
+              <Slider x:Name="HorizontalMarginSlider" Grid.Row="1" Grid.ColumnSpan="2" Minimum="0" Maximum="960" ValueChanged="EditorSlider_OnChanged" />
+            </Grid>
+            <Grid Grid.Column="1" RowDefinitions="Auto,34" ColumnDefinitions="*,72" RowSpacing="6">
+              <TextBlock Text="垂直边距 (Y 偏移)" Foreground="#69737F" FontSize="10" />
+              <TextBlock x:Name="MarginValueText" Grid.Column="1" HorizontalAlignment="Right" Foreground="#3399F3" />
+              <Slider x:Name="MarginSlider" Grid.Row="1" Grid.ColumnSpan="2" Minimum="0" Maximum="540" ValueChanged="EditorSlider_OnChanged" />
+            </Grid>
+            <StackPanel Grid.Column="2" Spacing="6">
+              <TextBlock Text="对齐位置" Foreground="#69737F" FontSize="10" />
+              <ComboBox x:Name="AlignmentCombo" Classes="settingSelect" SelectionChanged="EditorCombo_OnChanged">
+                <ComboBoxItem Content="顶部居左" /><ComboBoxItem Content="顶部居中" /><ComboBoxItem Content="顶部居右" />
+                <ComboBoxItem Content="中部居左" /><ComboBoxItem Content="中部居中" /><ComboBoxItem Content="中部居右" />
+                <ComboBoxItem Content="底部居左" /><ComboBoxItem Content="底部居中" /><ComboBoxItem Content="底部居右" />
+              </ComboBox>
+            </StackPanel>
+          </Grid>
+        </StackPanel>
+      </Border>
+    </ScrollViewer>
+
+    <Border Grid.Row="2" Background="White" BorderBrush="#E1E5EA" BorderThickness="0,1,0,0" Padding="22,12">
+      <Grid ColumnDefinitions="*,Auto,10,Auto,10,Auto">
+        <TextBlock Text="应用后自动保存，无需再点击工作区保存" Foreground="#7B8490" VerticalAlignment="Center" FontSize="10.5" />
+        <Button Grid.Column="1" Classes="centeredAction" Content="取消" Width="100" Height="40" CornerRadius="20" Background="#EFF1F4" Foreground="#252B33" BorderThickness="0" Click="Cancel_OnClick" />
+        <Button Grid.Column="3" Classes="centeredAction" Content="重置" Width="100" Height="40" CornerRadius="20" Background="#EFF1F4" Foreground="#252B33" BorderThickness="0" Click="Reset_OnClick" />
+        <Button Grid.Column="5" Classes="centeredAction" Content="应用" Width="112" Height="40" CornerRadius="20" Background="#3399F3" Foreground="White" BorderThickness="0" Click="Apply_OnClick" />
+      </Grid>
+    </Border>
+  </Grid>
+</Window>

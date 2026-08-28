@@ -1,0 +1,251 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:AstraCat"
+        xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+        x:Class="AstraCat.MediaExportWindow"
+        x:CompileBindings="False"
+        Width="780" Height="530" MinWidth="700" MinHeight="460"
+        WindowStartupLocation="CenterOwner" Background="#F5F6F8"
+        Title="导出">
+  <Window.Styles>
+    <Style Selector="Button.playerAction">
+      <Setter Property="Background" Value="#252A34" />
+      <Setter Property="Foreground" Value="#E2E8F0" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BorderBrush" Value="#33FFFFFF" />
+      <Setter Property="CornerRadius" Value="14" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Template">
+        <ControlTemplate TargetType="Button">
+          <Border Background="{TemplateBinding Background}"
+                  BorderBrush="{TemplateBinding BorderBrush}"
+                  BorderThickness="{TemplateBinding BorderThickness}"
+                  CornerRadius="{TemplateBinding CornerRadius}">
+            <ContentPresenter Content="{TemplateBinding Content}"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="Button.playerAction:pointerover">
+      <Setter Property="Background" Value="#3B4252" />
+      <Setter Property="BorderBrush" Value="#66FFFFFF" />
+      <Setter Property="Foreground" Value="#FFFFFF" />
+    </Style>
+    <Style Selector="Button.playerAction:pressed">
+      <Setter Property="Background" Value="#1A1D24" />
+      <Setter Property="BorderBrush" Value="#22FFFFFF" />
+      <Setter Property="RenderTransform" Value="scale(0.92)" />
+    </Style>
+  </Window.Styles>
+
+  <Grid RowDefinitions="50,*,54">
+    <Border Grid.Row="0" Padding="18,0" Background="White" BorderBrush="#E2E5E9" BorderThickness="0,0,0,1">
+      <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+        <StackPanel>
+          <TextBlock Text="导出成片" FontSize="16" FontWeight="Bold" Foreground="#171B21" />
+          <TextBlock x:Name="ProjectTitleText" Margin="0,2,0,0" FontSize="10.5" Foreground="#7A8490" />
+        </StackPanel>
+        <Border Grid.Column="1" Padding="10,4" CornerRadius="12" Background="#EFF6FF" BorderBrush="#DBEAFE" BorderThickness="1"
+                VerticalAlignment="Center">
+          <TextBlock x:Name="FormatBadgeText" Text="MP4" FontSize="10.5" FontWeight="Bold" Foreground="#2563EB"
+                     HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" />
+        </Border>
+      </Grid>
+    </Border>
+
+    <Grid Grid.Row="1" Margin="18,12" ColumnDefinitions=".9*,16,1.1*">
+      <StackPanel Grid.Column="0" Spacing="10">
+        <!-- In-place Video + Subtitle RenderAPI Player Card -->
+        <Border Height="200" CornerRadius="12" Background="#0C0D10" BorderBrush="#262930" BorderThickness="1" ClipToBounds="True">
+          <Grid>
+            <!-- Embedded OpenGL Mpv RenderAPI Video Surface -->
+            <local:MpvVideoHost x:Name="PreviewVideoHost" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+
+            <!-- Center Loading / Error Indicator -->
+            <TextBlock x:Name="PreviewLoadingText" Text="正在加载视频合成预览…" Foreground="#8A939E" FontSize="10.5"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+
+            <!-- Top Header Badge -->
+            <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8,6"
+                    Padding="7,2.5" CornerRadius="5" Background="#A6111317" BorderBrush="#33FFFFFF" BorderThickness="1">
+              <StackPanel Orientation="Horizontal" Spacing="4">
+                <Ellipse Width="5" Height="5" Fill="#35A85B" VerticalAlignment="Center" />
+                <TextBlock Text="实时合成预览" FontSize="9.5" FontWeight="SemiBold" Foreground="#E2E8F0" VerticalAlignment="Center" />
+              </StackPanel>
+            </Border>
+
+            <!-- Bottom Floating Control Bar -->
+            <Border VerticalAlignment="Bottom" Background="#E60D0F14" CornerRadius="0,0,11,11" Padding="10,5" BorderBrush="#1FFFFFFF" BorderThickness="0,1,0,0">
+              <Grid ColumnDefinitions="28,8,*,10,Auto" VerticalAlignment="Center">
+                <Button x:Name="PreviewPlayPauseButton" Classes="playerAction" Grid.Column="0" Width="28" Height="28"
+                        Click="PreviewPlayPause_OnClick" ToolTip.Tip="播放 / 暂停">
+                  <icons:MaterialIcon x:Name="PreviewPlayPauseIcon" Kind="Play" Width="14" Height="14" />
+                </Button>
+
+                <!-- Custom Interactive Video Seek Bar with Tooltip & Live Scrubbing -->
+                <local:VideoSeekBarControl x:Name="PreviewSeekBar" Grid.Column="2" VerticalAlignment="Center" Height="22" />
+
+                <TextBlock x:Name="PreviewTimeText" Grid.Column="4" Text="00:00 / 00:00" FontSize="10" Foreground="#A0AEC0"
+                           FontWeight="Medium" VerticalAlignment="Center" FontFamily="Consolas, monospace" />
+              </Grid>
+            </Border>
+          </Grid>
+        </Border>
+        <Border Padding="12" Background="White" CornerRadius="10" BorderBrush="#E1E5EA" BorderThickness="1">
+          <StackPanel Spacing="6">
+            <TextBlock Text="导出位置" FontSize="10.5" Foreground="#747E89" />
+            <Grid ColumnDefinitions="*,34" ColumnSpacing="6">
+              <TextBox x:Name="OutputPathBox" Height="34" Padding="12,0" VerticalContentAlignment="Center" FontSize="11.5"
+                       Background="#F3F4F6" BorderThickness="0" CornerRadius="17" TextChanged="Option_OnChanged" />
+              <Button Grid.Column="1" Width="34" Height="34" Padding="0" CornerRadius="17" Background="#E9EBEE"
+                      BorderThickness="0" Click="Browse_OnClick" ToolTip.Tip="选择导出位置">
+                <TextBlock Text="…" FontSize="17" FontWeight="Bold" VerticalAlignment="Center" />
+              </Button>
+            </Grid>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+
+      <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto">
+        <StackPanel Spacing="10">
+          <TextBlock Text="视频导出" FontSize="13.5" FontWeight="Bold" Foreground="#252A31" />
+          <Border Padding="12,10" Background="White" CornerRadius="10" BorderBrush="#E1E5EA" BorderThickness="1">
+            <Grid RowDefinitions="34,Auto,34,34,34,34,Auto,34,34,Auto,34,34" ColumnDefinitions="96,*" RowSpacing="6">
+              <TextBlock Text="分辨率" VerticalAlignment="Center" FontSize="12" Foreground="#626D79" />
+              <ComboBox x:Name="ResolutionCombo" Grid.Column="1" Classes="settingSelect" SelectionChanged="ResolutionCombo_OnChanged">
+                <ComboBoxItem Content="原始" Tag="Original" /><ComboBoxItem Content="360p" Tag="P360" />
+                <ComboBoxItem Content="480p" Tag="P480" /><ComboBoxItem Content="720p" Tag="Hd720" />
+                <ComboBoxItem Content="1080p" Tag="FullHd1080" /><ComboBoxItem Content="2K (1440p)" Tag="Qhd1440" />
+                <ComboBoxItem Content="4K (2160p)" Tag="Uhd2160" /><ComboBoxItem Content="自定义…" Tag="Custom" />
+              </ComboBox>
+              <StackPanel x:Name="CustomResolutionPanel" Grid.Row="1" Grid.Column="1" Orientation="Horizontal"
+                          Spacing="6" IsVisible="False">
+                <TextBox x:Name="CustomWidthBox" Width="96" Height="34" Padding="10,0" VerticalContentAlignment="Center" FontSize="11.5"
+                         Background="#F3F4F6" BorderThickness="0" CornerRadius="17" PlaceholderText="宽 (px)" TextChanged="Option_OnChanged" />
+                <TextBlock Text="×" VerticalAlignment="Center" Foreground="#8A939E" />
+                <TextBox x:Name="CustomHeightBox" Width="96" Height="34" Padding="10,0" VerticalContentAlignment="Center" FontSize="11.5"
+                         Background="#F3F4F6" BorderThickness="0" CornerRadius="17" PlaceholderText="高 (px)" TextChanged="Option_OnChanged" />
+              </StackPanel>
+              <TextBlock Grid.Row="2" Text="格式" VerticalAlignment="Center" FontSize="12" Foreground="#626D79" />
+              <ComboBox x:Name="FormatCombo" Grid.Row="2" Grid.Column="1" Classes="settingSelect" SelectionChanged="FormatCombo_OnChanged">
+                <ComboBoxItem Content="MP4（推荐）" Tag="Mp4" /><ComboBoxItem Content="MOV" Tag="Mov" />
+                <ComboBoxItem Content="MKV" Tag="Mkv" />
+              </ComboBox>
+              <TextBlock Grid.Row="3" Text="帧率" VerticalAlignment="Center" FontSize="12" Foreground="#626D79" />
+              <ComboBox x:Name="FrameRateCombo" Grid.Row="3" Grid.Column="1" Classes="settingSelect" SelectionChanged="Option_OnChanged">
+                <ComboBoxItem Content="原始" Tag="Original" /><ComboBoxItem Content="24" Tag="Fps24" />
+                <ComboBoxItem Content="25" Tag="Fps25" /><ComboBoxItem Content="30" Tag="Fps30" />
+                <ComboBoxItem Content="60" Tag="Fps60" />
+              </ComboBox>
+              <TextBlock Grid.Row="4" Text="质量" VerticalAlignment="Center" FontSize="12" Foreground="#626D79" />
+              <ComboBox x:Name="QualityCombo" Grid.Row="4" Grid.Column="1" Classes="settingSelect" SelectionChanged="Option_OnChanged">
+                <ComboBoxItem Content="推荐" Tag="Recommended" /><ComboBoxItem Content="高" Tag="High" />
+                <ComboBoxItem Content="较小文件" Tag="SmallerFile" />
+              </ComboBox>
+              <TextBlock Grid.Row="5" Text="码率" VerticalAlignment="Center" FontSize="12" Foreground="#626D79" />
+              <ComboBox x:Name="BitRateCombo" Grid.Row="5" Grid.Column="1" Classes="settingSelect" SelectionChanged="BitRateCombo_OnChanged">
+                <ComboBoxItem Content="自动（按质量）" Tag="Auto" /><ComboBoxItem Content="2 Mbps" Tag="2" />
+                <ComboBoxItem Content="4 Mbps" Tag="4" /><ComboBoxItem Content="6 Mbps" Tag="6" />
+                <ComboBoxItem Content="8 Mbps" Tag="8" /><ComboBoxItem Content="12 Mbps" Tag="12" />
+                <ComboBoxItem Content="16 Mbps" Tag="16" /><ComboBoxItem Content="25 Mbps" Tag="25" />
+                <ComboBoxItem Content="40 Mbps" Tag="40" /><ComboBoxItem Content="自定义…" Tag="Custom" />
+              </ComboBox>
+              <StackPanel x:Name="CustomBitRatePanel" Grid.Row="6" Grid.Column="1" Spacing="6" IsVisible="False">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <TextBox x:Name="CustomBitRateBox" Width="120" Height="34" Padding="10,0" VerticalContentAlignment="Center" FontSize="11.5"
+                           Background="#F3F4F6" BorderThickness="0" CornerRadius="17" PlaceholderText="码率，如 10" TextChanged="Option_OnChanged" />
+                  <TextBlock Text="Mbps" VerticalAlignment="Center" Foreground="#8A939E" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <RadioButton x:Name="VbrRadio" Content="VBR（动态码率）" IsChecked="True" GroupName="RateControl"
+                               VerticalAlignment="Center" Click="Option_OnChanged" />
+                  <RadioButton x:Name="CbrRadio" Content="CBR（静态码率）" GroupName="RateControl"
+                               VerticalAlignment="Center" Click="Option_OnChanged" />
+                </StackPanel>
+              </StackPanel>
+              <TextBlock Grid.Row="7" Text="视频编码" VerticalAlignment="Center" FontSize="12" Foreground="#626D79" />
+              <ComboBox x:Name="CodecCombo" Grid.Row="7" Grid.Column="1" Classes="settingSelect" SelectionChanged="CodecCombo_OnChanged">
+                <ComboBoxItem Content="H.264（最通用）" Tag="H264" />
+                <ComboBoxItem Content="HEVC（高效压缩）" Tag="Hevc" />
+                <ComboBoxItem Content="AV1（开放编码）" Tag="Av1" />
+              </ComboBox>
+              <TextBlock Grid.Row="8" Text="编码器" VerticalAlignment="Center" FontSize="12" Foreground="#626D79" />
+              <ComboBox x:Name="EncoderCombo" Grid.Row="8" Grid.Column="1" Classes="settingSelect" SelectionChanged="Option_OnChanged">
+                <ComboBoxItem Content="自动（硬件加速优先）" Tag="Auto" />
+                <ComboBoxItem x:Name="NvencItem" Content="NVIDIA NVENC" Tag="NvidiaNvenc" />
+                <ComboBoxItem x:Name="QsvItem" Content="Intel Quick Sync" Tag="IntelQsv" />
+                <ComboBoxItem x:Name="AmfItem" Content="AMD AMF" Tag="AmdAmf" />
+                <ComboBoxItem Content="软件 (CPU)" Tag="Software" />
+              </ComboBox>
+              <TextBlock x:Name="EncoderStatusText" Grid.Row="9" Grid.Column="1" Text="正在检测硬件编码器…"
+                         FontSize="10" Foreground="#7A8490" TextWrapping="Wrap" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="10" Text="音频质量" VerticalAlignment="Center" FontSize="12" Foreground="#626D79" />
+              <ComboBox x:Name="AudioQualityCombo" Grid.Row="10" Grid.Column="1" Classes="settingSelect" SelectionChanged="Option_OnChanged">
+                <ComboBoxItem Content="AAC 128 kbps" Tag="128" />
+                <ComboBoxItem Content="AAC 192 kbps（推荐）" Tag="192" />
+                <ComboBoxItem Content="AAC 256 kbps" Tag="256" />
+                <ComboBoxItem Content="AAC 320 kbps" Tag="320" />
+              </ComboBox>
+              <TextBlock Grid.Row="11" Text="音频采样率" VerticalAlignment="Center" FontSize="12" Foreground="#626D79" />
+              <ComboBox x:Name="AudioSampleRateCombo" Grid.Row="11" Grid.Column="1" Classes="settingSelect" SelectionChanged="Option_OnChanged">
+                <ComboBoxItem Content="原始" Tag="0" />
+                <ComboBoxItem Content="44100 Hz" Tag="44100" />
+                <ComboBoxItem Content="48000 Hz" Tag="48000" />
+              </ComboBox>
+            </Grid>
+          </Border>
+
+          <Border Padding="12,10" Background="White" CornerRadius="10" BorderBrush="#E1E5EA" BorderThickness="1">
+            <StackPanel Spacing="10">
+              <CheckBox x:Name="IncludeVideoCheck" Content="包含视频" FontWeight="SemiBold" IsChecked="True" Click="Option_OnChanged" />
+              <Border Height="1" Background="#ECEEF1" />
+              <CheckBox x:Name="IncludeAudioCheck" Content="包含音频" FontWeight="SemiBold" IsChecked="True" Click="Option_OnChanged" />
+              <StackPanel x:Name="SubtitlePanel" Orientation="Horizontal" Spacing="10" IsVisible="False">
+                <CheckBox x:Name="ExportSubtitlesCheck" Content="字幕导出" FontWeight="SemiBold"
+                          IsChecked="True" VerticalAlignment="Center" Click="SubtitleExport_OnChanged" />
+                <ComboBox x:Name="SubtitleFormatCombo" Classes="settingSelect" Width="140"
+                          VerticalAlignment="Center" SelectionChanged="Option_OnChanged">
+                  <ComboBoxItem Content="SRT" Tag="Srt" />
+                  <ComboBoxItem Content="ASS（带样式）" Tag="Ass" />
+                  <ComboBoxItem Content="TXT（纯文本）" Tag="Txt" />
+                </ComboBox>
+                <TextBlock Text="UTF-8 编码" FontSize="10" Foreground="#8A939E" VerticalAlignment="Center" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
+
+          <Border x:Name="ProgressPanel" Padding="12" Background="#EAF6FE" CornerRadius="10" IsVisible="False">
+            <StackPanel Spacing="8">
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock x:Name="ProgressStatusText" Text="正在导出" FontWeight="SemiBold" Foreground="#1F6EAC" />
+                <TextBlock x:Name="ProgressPercentText" Grid.Column="1" Text="0%" Foreground="#1F6EAC" />
+              </Grid>
+              <ProgressBar x:Name="ExportProgressBar" Height="6" Minimum="0" Maximum="1" />
+              <TextBlock x:Name="ProgressTimeText" FontSize="10" Foreground="#678299" />
+            </StackPanel>
+          </Border>
+
+          <TextBlock x:Name="ErrorText" IsVisible="False" TextWrapping="Wrap" Foreground="#D94747" FontSize="10.5" />
+        </StackPanel>
+      </ScrollViewer>
+    </Grid>
+
+    <Border Grid.Row="2" Background="White" BorderBrush="#E1E5EA" BorderThickness="0,1,0,0" Padding="18,8">
+      <Grid ColumnDefinitions="*,Auto,8,Auto">
+        <StackPanel VerticalAlignment="Center">
+          <TextBlock x:Name="EstimateText" Text="正在读取媒体信息…" FontWeight="SemiBold" FontSize="11.5" Foreground="#3A424C" />
+          <TextBlock x:Name="SourceInfoText" Margin="0,2,0,0" FontSize="10" Foreground="#7A8490" />
+        </StackPanel>
+        <Button x:Name="ExportButton" Grid.Column="1" Content="导出" Width="96" Height="36" CornerRadius="18"
+                Background="#3399F3" Foreground="White" FontWeight="Bold" BorderThickness="0"
+                HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="Export_OnClick" />
+        <Button x:Name="CancelButton" Grid.Column="3" Content="取消" Width="86" Height="36" CornerRadius="18"
+                Background="#ECEEF1" Foreground="#252A31" FontWeight="Bold" BorderThickness="0"
+                HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="Cancel_OnClick" />
+      </Grid>
+    </Border>
+  </Grid>
+</Window>

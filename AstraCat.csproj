@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <Version>0.1.0-dev</Version>
+    <RepositoryUrl>https://github.com/Cuptu/AstraCat</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\Brand\AstraCat.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Controls.ColorPicker" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
+    <PackageReference Include="Material.Icons.Avalonia" Version="3.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**"
+                      Exclude="Assets\Badges\**;Assets\Brand\AstraCat.svg;Assets\Brand\AstraCatLogo.svg;Assets\Brand\AstraCatLogo.png;Assets\Brand\AstraCatLogo-source.png;Assets\Models\qwen.jpg;Assets\Models\systran.png;Assets\Models\whisper.png" />
+    <None Include="runtime\tools\**" Exclude="runtime\tools\mpv\**" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="runtime\tools\mpv\libmpv-2.dll"
+          Condition="Exists('runtime\tools\mpv\libmpv-2.dll')"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="runtime\tools\mpv\LIBMPV_SOURCE.md" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

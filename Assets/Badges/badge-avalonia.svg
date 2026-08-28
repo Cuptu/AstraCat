@@ -1,0 +1,20 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" width="178" height="34" viewBox="0 0 178 34">
+  <clipPath id="r">
+    <rect width="178" height="34" rx="10"/>
+  </clipPath>
+
+  <g clip-path="url(#r)">
+    <rect width="100" height="34" fill="#555"/>
+    <rect x="100" width="78" height="34" fill="#8B44AC"/>
+  </g>
+
+  <text x="12" y="23" fill="white"
+        font-family="Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="bold">
+    Avalonia
+  </text>
+
+  <text x="110" y="23" fill="white"
+        font-family="Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="bold">
+    12.1.1
+  </text>
+</svg>

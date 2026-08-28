@@ -1,0 +1,25 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" width="286" height="34" viewBox="0 0 286 34">
+  <clipPath id="r">
+    <rect width="286" height="34" rx="10"/>
+  </clipPath>
+
+  <g clip-path="url(#r)">
+    <rect width="154" height="34" fill="#555"/>
+    <rect x="154" width="132" height="34" fill="#76B900"/>
+  </g>
+
+  <!-- NVIDIA Logo -->
+  <svg x="10" y="8" width="18" height="18" viewBox="0 0 24 24" fill="white">
+    <path d="M12.018 7.37c-.12 0-.236.024-.344.062l-.29.11c-.968.497-1.633 1.503-1.633 2.661 0 1.634 1.323 2.957 2.957 2.957.275 0 .54-.038.79-.107l-1.706-1.707a.738.738 0 0 1-.216-.523.739.739 0 0 1 .739-.739c.205 0 .391.083.525.217l1.815 1.814c.387-.502.62-1.13.62-1.813 0-1.634-1.324-2.932-2.957-2.932zm-1.442-2.993a6.62 6.62 0 0 0-2.855.553l1.597 1.597c.656-.408 1.433-.647 2.264-.647 2.357 0 4.27 1.913 4.27 4.27 0 .787-.214 1.523-.585 2.153l1.755 1.755a6.64 6.64 0 0 0 1.884-4.636c0-3.67-2.977-6.647-6.648-6.647-.565 0-1.11.071-1.632.202zm-3.834 1.547L4.664 3.846C2.26 5.885.73 8.878.73 12.217c0 6.287 5.096 11.383 11.383 11.383 4.624 0 8.598-2.76 10.37-6.72l-2.072-1.196c-1.38 3.197-4.57 5.434-8.298 5.434-4.915 0-8.898-3.983-8.898-8.898 0-2.617 1.13-4.97 2.93-6.603z"/>
+  </svg>
+
+  <text x="34" y="23" fill="white"
+        font-family="Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="bold">
+    Acceleration
+  </text>
+
+  <text x="164" y="23" fill="white"
+        font-family="Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="bold">
+    CUDA | CPU
+  </text>
+</svg>

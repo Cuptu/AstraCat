@@ -1,0 +1,29 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:AstraCat"
+        x:Class="AstraCat.SubtitlePreviewWindow"
+        Width="900" Height="560" MinWidth="560" MinHeight="380"
+        WindowStartupLocation="CenterOwner" Background="#0E0F12"
+        Title="字幕预览">
+  <Grid RowDefinitions="*,Auto">
+    <Panel Background="Black">
+      <local:MpvVideoHost x:Name="VideoHost" />
+      <TextBlock x:Name="LoadingText" Text="正在加载预览…" Foreground="#8A939E" TextWrapping="Wrap"
+                 HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24,0" TextAlignment="Center" />
+    </Panel>
+
+    <Border Grid.Row="1" Background="#17191D" Padding="14,10">
+      <Grid ColumnDefinitions="36,12,*,12,Auto" VerticalAlignment="Center">
+        <Button x:Name="PlayPauseButton" Width="36" Height="36" Padding="0" CornerRadius="18"
+                Background="#24282E" BorderThickness="0" Click="PlayPause_OnClick" ToolTip.Tip="播放 / 暂停">
+          <TextBlock x:Name="PlayPauseGlyph" Text="⏸" FontSize="13" Foreground="#F4F5F6"
+                     HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Button>
+        <Slider x:Name="SeekSlider" Grid.Column="2" Minimum="0" Maximum="100" VerticalAlignment="Center"
+                PointerPressed="SeekSlider_OnPointerPressed" PointerReleased="SeekSlider_OnPointerReleased" />
+        <TextBlock x:Name="TimeText" Grid.Column="4" Text="--:-- / --:--" FontSize="11" Foreground="#9AA3AD"
+                   VerticalAlignment="Center" />
+      </Grid>
+    </Border>
+  </Grid>
+</Window>

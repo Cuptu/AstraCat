@@ -1,0 +1,63 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:primitives="clr-namespace:Avalonia.Controls.Primitives;assembly=Avalonia.Controls.ColorPicker"
+             x:Class="AstraCat.CompactColorPicker"
+             x:CompileBindings="False">
+  <Button x:Name="PickerButton" Height="42" Padding="12,0"
+          Background="White" BorderBrush="#E1E5EA" BorderThickness="1"
+          CornerRadius="18" HorizontalContentAlignment="Stretch" Cursor="Hand">
+    <Button.Styles>
+      <Style Selector="Button:pointerover">
+        <Setter Property="Background" Value="White" />
+        <Setter Property="BorderBrush" Value="#C9D0D8" />
+        <Setter Property="CornerRadius" Value="18" />
+      </Style>
+      <Style Selector="Button:pressed">
+        <Setter Property="Background" Value="White" />
+        <Setter Property="BorderBrush" Value="#3399F3" />
+        <Setter Property="CornerRadius" Value="18" />
+      </Style>
+      <Style Selector="FlyoutPresenter.compactColorFlyout">
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="18" />
+      </Style>
+    </Button.Styles>
+    <Grid ColumnDefinitions="30,*" ColumnSpacing="10">
+      <Border x:Name="ColorSwatch" Width="26" Height="26" CornerRadius="13"
+              BorderBrush="#D7DCE2" BorderThickness="1" />
+      <TextBlock x:Name="HexDisplay" Grid.Column="1" VerticalAlignment="Center"
+                 Foreground="#252B33" FontWeight="SemiBold" />
+    </Grid>
+    <Button.Flyout>
+      <Flyout Placement="BottomEdgeAlignedLeft" FlyoutPresenterClasses="compactColorFlyout">
+        <Border Width="292" Padding="18" Background="White"
+                BorderBrush="#E1E5EA" BorderThickness="1" CornerRadius="18">
+          <StackPanel Spacing="14">
+            <primitives:ColorSpectrum x:Name="Spectrum" Width="240" Height="240"
+                                      HorizontalAlignment="Center"
+                                      Shape="Ring" Components="HueSaturation"
+                                      ColorChanged="Spectrum_OnColorChanged" />
+            <primitives:ColorSlider x:Name="ValueSlider" Height="18"
+                                    ColorModel="Hsva" IsAlphaVisible="False" IsPerceptive="True"
+                                    ColorComponent="{Binding #Spectrum.ThirdComponent}"
+                                    HsvColor="{Binding #Spectrum.HsvColor, Mode=TwoWay}" />
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+              <Border Width="36" Height="36" Background="#F7F8FA"
+                      BorderBrush="#E1E5EA" BorderThickness="1" CornerRadius="18">
+                <TextBlock Text="#" HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Foreground="#7B8490" FontWeight="Bold" />
+              </Border>
+              <TextBox x:Name="HexEditor" Grid.Column="1" Height="36" Padding="14,0"
+                       Background="White" Foreground="#252B33"
+                       BorderBrush="#D7DCE2" BorderThickness="1" CornerRadius="18"
+                       VerticalContentAlignment="Center"
+                       KeyDown="HexEditor_OnKeyDown" LostFocus="HexEditor_OnLostFocus" />
+            </Grid>
+          </StackPanel>
+        </Border>
+      </Flyout>
+    </Button.Flyout>
+  </Button>
+</UserControl>

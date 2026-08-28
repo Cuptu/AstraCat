@@ -1,0 +1,63 @@
+# .NET build output
+[Bb]in/
+[Oo]bj/
+dist/
+artifacts/
+TestResults/
+coverage/
+*.pdb
+*.nupkg
+
+# IDE and local tooling
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Python caches and virtual environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# AstraCat runtime data. Only the small libmpv provenance document is source.
+runtime/*
+!runtime/tools/
+runtime/tools/*
+!runtime/tools/mpv/
+runtime/tools/mpv/*
+!runtime/tools/mpv/LIBMPV_SOURCE.md
+runtimes/
+.verify-all-providers/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.local.json
+secrets.json
+
+# Superseded local artwork retained outside the public source set
+/Assets/Models/qwen.jpg
+/Assets/Models/systran.png
+/Assets/Models/whisper.png
+
+# Temporary, diagnostic and editor files
+*.tmp
+*.temp
+*.log
+*.trace
+*.bak
+*.backup
+*.orig
+*.rej
+*~
+
+# Operating-system metadata
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
