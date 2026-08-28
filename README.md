@@ -253,15 +253,15 @@ python -m py_compile engines\asr_worker.py
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\prepare-native-deps.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File .\package-release.ps1 -Version 0.1.0-dev.1 -FfmpegDir .\runtime\tools\ffmpeg
+powershell -NoProfile -ExecutionPolicy Bypass -File .\package-release.ps1 -Version 0.1.0-DEV -FfmpegDir .\runtime\tools\ffmpeg
 ```
 
 脚本会生成：
 
 ```text
-dist/AstraCat-v0.1.0-dev.1-Setup.exe
-dist/AstraCat-v0.1.0-dev.1-win-x64.zip
-dist/AstraCat-v0.1.0-dev.1-SHA256.txt
+dist/AstraCat-v0.1.0-DEV-Setup.exe
+dist/AstraCat-v0.1.0-DEV-win-x64.zip
+dist/AstraCat-v0.1.0-DEV-SHA256.txt
 ```
 
 它会检查 libmpv 哈希、FFmpeg 运行 DLL 和必需编码器，缺少依赖时直接停止，不生成不完整的发布包。

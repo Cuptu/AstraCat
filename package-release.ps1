@@ -21,10 +21,10 @@ $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 Add-Type -AssemblyName System.IO.Compression
 
-if ([string]::IsNullOrWhiteSpace($Version)) { $Version = "0.1.0-dev" }
+if ([string]::IsNullOrWhiteSpace($Version)) { $Version = "0.1.0-DEV" }
 if ($Version.StartsWith("v", [StringComparison]::OrdinalIgnoreCase)) { $Version = $Version.Substring(1) }
-if ($Version -notmatch '^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$') {
-    throw "发布失败：版本号必须是 SemVer 格式，例如 0.1.0-dev.1。当前值：$Version"
+if ($Version -cnotmatch '^\d+\.\d+\.\d+-DEV$') {
+    throw "发布失败：DEV 版本号必须是 0.1.0-DEV 这样的格式。当前值：$Version"
 }
 
 $rootDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -41,7 +41,7 @@ if ([IO.Path]::GetFullPath($distDir).TrimEnd('\') -eq [IO.Path]::GetFullPath($ro
 }
 
 Write-Host "=================================================================" -ForegroundColor Cyan
-Write-Host "             AstraCat v$Version 软件安装分发包构建工具            " -ForegroundColor Cyan
+Write-Host "             AstraCat $Version 软件安装分发包构建工具             " -ForegroundColor Cyan
 Write-Host "=================================================================" -ForegroundColor Cyan
 
 if (Test-Path $distDir) {

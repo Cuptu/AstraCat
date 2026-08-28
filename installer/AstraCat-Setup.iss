@@ -1,7 +1,7 @@
 ; AstraCat Inno Setup Script
 #define MyAppName "AstraCat"
 #ifndef MyAppVersion
-  #define MyAppVersion "0.1.0-dev"
+  #define MyAppVersion "0.1.0-DEV"
 #endif
 #define MyAppPublisher "Cuptu"
 #define MyAppExeName "AstraCat.exe"
@@ -9,7 +9,7 @@
   #define BuildDistDir "..\dist"
 #endif
 #ifndef MyAppOutputBaseFilename
-  #define MyAppOutputBaseFilename "AstraCat-v0.1.0-dev-Setup"
+  #define MyAppOutputBaseFilename "AstraCat-v0.1.0-DEV-Setup"
 #endif
 
 [Setup]

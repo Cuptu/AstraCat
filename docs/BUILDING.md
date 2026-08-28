@@ -56,15 +56,15 @@ dotnet run -c Debug
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\prepare-native-deps.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File .\package-release.ps1 -Version 0.1.0-dev.1 -FfmpegDir .\runtime\tools\ffmpeg
+powershell -NoProfile -ExecutionPolicy Bypass -File .\package-release.ps1 -Version 0.1.0-DEV -FfmpegDir .\runtime\tools\ffmpeg
 ```
 
 产物位于 `dist`：
 
 ```text
-AstraCat-v0.1.0-dev.1-Setup.exe
-AstraCat-v0.1.0-dev.1-win-x64.zip
-AstraCat-v0.1.0-dev.1-SHA256.txt
+AstraCat-v0.1.0-DEV-Setup.exe
+AstraCat-v0.1.0-DEV-win-x64.zip
+AstraCat-v0.1.0-DEV-SHA256.txt
 ```
 
 ## GitHub Actions
@@ -83,14 +83,14 @@ AstraCat-v0.1.0-dev.1-SHA256.txt
 
 Release 顶部的固定介绍来自 [`.github/RELEASE_TEMPLATE.md`](../.github/RELEASE_TEMPLATE.md)，本次提交和合并记录由 GitHub 按 [`.github/release.yml`](../.github/release.yml) 自动分类并追加。发布前如需调整兼容性、已知问题或下载说明，先修改模板并提交到 `main`，再创建版本标签。
 
-DEV 阶段建议使用递增的预发布标签：
+DEV 阶段固定使用 `主版本.次版本.补丁版本-DEV`。每发布一次，把补丁号加一：`0.1.0-DEV`、`0.1.1-DEV`、`0.1.2-DEV`。
 
 ```powershell
 git switch main
 git pull --ff-only
 git status --short
-git tag -a v0.1.0-dev.4 -m "AstraCat 0.1.0-dev.4"
-git push origin v0.1.0-dev.4
+git tag -a v0.1.0-DEV -m "AstraCat 0.1.0-DEV"
+git push origin v0.1.0-DEV
 ```
 
 标签必须创建在已经通过 CI 的 `main` 提交上。工作流会把标签中的版本写入程序集、安装包文件名和 SHA-256 清单，随后上传 Actions Artifact，并创建带有安装包、便携包和校验文件的 Prerelease。DEV 结束前不要使用正式 `v1.0.0` 标签。

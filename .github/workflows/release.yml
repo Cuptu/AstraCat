@@ -9,7 +9,7 @@ on:
       version:
         description: "SemVer without the leading v"
         required: true
-        default: "0.1.0-dev"
+        default: "0.1.0-DEV"
 
 permissions:
   contents: write
@@ -45,8 +45,8 @@ jobs:
           } else {
             $version = "${{ inputs.version }}"
           }
-          if ($version -notmatch '^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$') {
-            throw "Invalid SemVer: $version"
+          if ($version -cnotmatch '^\d+\.\d+\.\d+-DEV$') {
+            throw "Invalid DEV version: $version. Expected format: 0.1.0-DEV"
           }
           "ASTRACAT_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
@@ -89,7 +89,7 @@ jobs:
         if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v3
         with:
-          name: AstraCat v${{ env.ASTRACAT_VERSION }} · DEV
+          name: AstraCat ${{ env.ASTRACAT_VERSION }}
           body_path: .github/RELEASE_TEMPLATE.md
           files: |
             dist/AstraCat-v${{ env.ASTRACAT_VERSION }}-Setup.exe
