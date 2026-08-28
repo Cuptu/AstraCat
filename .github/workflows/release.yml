@@ -51,8 +51,8 @@ jobs:
           "ASTRACAT_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Audit repository contents
-        shell: powershell
-        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\audit-repository.ps1
+        shell: pwsh
+        run: ./scripts/audit-repository.ps1
 
       - name: Restore locked dependencies
         run: dotnet restore AstraCat.csproj -r win-x64 --locked-mode
