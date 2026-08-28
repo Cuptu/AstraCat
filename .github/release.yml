@@ -1,0 +1,28 @@
+changelog:
+  exclude:
+    labels:
+      - skip-changelog
+    authors:
+      - dependabot
+
+  categories:
+    - title: 新功能
+      labels:
+        - enhancement
+        - feature
+    - title: 问题修复
+      labels:
+        - bug
+        - fix
+    - title: 界面与使用体验
+      labels:
+        - ui
+        - ux
+    - title: 文档与构建
+      labels:
+        - documentation
+        - build
+        - ci
+    - title: 其他变更
+      labels:
+        - "*"

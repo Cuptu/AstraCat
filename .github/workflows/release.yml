@@ -87,12 +87,15 @@ jobs:
 
       - name: Create GitHub prerelease
         if: github.ref_type == 'tag'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
+          name: AstraCat v${{ env.ASTRACAT_VERSION }} · DEV
+          body_path: .github/RELEASE_TEMPLATE.md
           files: |
             dist/AstraCat-v${{ env.ASTRACAT_VERSION }}-Setup.exe
             dist/AstraCat-v${{ env.ASTRACAT_VERSION }}-win-x64.zip
             dist/AstraCat-v${{ env.ASTRACAT_VERSION }}-SHA256.txt
           generate_release_notes: true
           prerelease: true
+          preserve_order: true
           fail_on_unmatched_files: true
