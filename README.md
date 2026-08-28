@@ -274,18 +274,19 @@ GitHub 上传范围、Actions 工作流和标签发布方法见 [构建与发布
 ```text
 AstraCat-main/
 ├─ Assets/                          图标和界面资源
+├─ Controls/                        自定义控件与字幕时间轴
+├─ Models/                          字幕和样式数据模型
+├─ Services/                        部署、媒体、播放与动效服务
+├─ Views/                           主窗口、编辑器与弹窗
+├─ benchmarks/                      mpv 渲染诊断窗口
 ├─ docs/images/                     README 截图
 ├─ engines/                         Python ASR Worker
 ├─ installer/                       Inno Setup 脚本
 ├─ scripts/                         依赖准备与仓库审计脚本
 ├─ runtime/                         工具、模型、环境和项目数据
-├─ DeploymentManager.cs             模型、Python 与 CUDA 部署
-├─ MainWindow.axaml                 主窗口布局和样式
-├─ MainWindow.axaml.cs              主窗口与项目逻辑
-├─ MainWindow.SubtitleProcessing.cs 字幕处理和术语研究
-├─ MainWindow.Workspace.cs          播放器与字幕工作区
-├─ MediaExportService.cs            FFmpeg 导出
-├─ SubtitleTimelineControl.cs       多轨时间轴
+├─ App.axaml                        应用资源与全局样式
+├─ Program.cs                       程序入口
+├─ AstraCat.csproj                  .NET 项目配置
 ├─ packages.lock.json               NuGet 依赖锁定文件
 └─ package-release.ps1              Windows 发布脚本
 ```
