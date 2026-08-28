@@ -2,17 +2,17 @@
 
 <img src="./Assets/Brand/AstraCatLogo.png" width="104" alt="AstraCat Logo" />
 
-# AstraCat
+# AstraCat · 小猫做字幕
 
 **在 Windows 上完成转录、校对、翻译和字幕时间轴编辑。**
 
 [![Status](https://img.shields.io/badge/Status-DEV-F59E0B?style=flat-square&labelColor=1F2937)](https://github.com/Cuptu/AstraCat)
 [![Release](https://img.shields.io/github/v/release/Cuptu/AstraCat?style=flat-square&logo=github&label=Release&color=blue)](https://github.com/Cuptu/AstraCat/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/Cuptu/AstraCat/total?style=flat-square&logo=github&label=Downloads&color=brightgreen)](https://github.com/Cuptu/AstraCat/releases)
-<img src="./Assets/Badges/badge-platform.svg" height="20" alt="Windows x64" />
-<img src="./Assets/Badges/badge-dotnet.svg" height="20" alt=".NET 10" />
-<img src="./Assets/Badges/badge-avalonia.svg" height="20" alt="Avalonia 12.1.1" />
-<a href="https://developer.nvidia.com/cuda-toolkit"><img src="./Assets/Badges/badge-acceleration.svg" height="20" alt="NVIDIA CUDA and CPU acceleration" /></a>
+[![Platform](https://img.shields.io/badge/Platform-Windows%20x64-0078D4?style=flat-square&logo=windows11&logoColor=white)](https://www.microsoft.com/windows)
+[![.NET](https://img.shields.io/badge/.NET-10-512BD4?style=flat-square&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
+[![Avalonia](https://img.shields.io/badge/Avalonia-12.1.1-8B44AC?style=flat-square)](https://avaloniaui.net/)
+[![Acceleration](https://img.shields.io/badge/Acceleration-CUDA%20%7C%20CPU-76B900?style=flat-square&logo=nvidia&logoColor=white&labelColor=555)](https://developer.nvidia.com/cuda-toolkit)
 [![License](https://img.shields.io/badge/License-GPL--3.0--only-green?style=flat-square)](./LICENSE)
 
 [下载](https://github.com/Cuptu/AstraCat/releases) · [开始使用](#开始使用) · [功能介绍](#界面与功能) · [构建与发布](./docs/BUILDING.md) · [问题反馈](https://github.com/Cuptu/AstraCat/issues)
@@ -20,11 +20,11 @@
 </div>
 
 > [!IMPORTANT]
-> AstraCat 目前处于 DEV 阶段。界面、项目格式和模型环境仍会调整，更新前请备份 `runtime/projects`。当前只发布 Windows x64 版本；macOS 和 Linux 会在 Windows 版稳定后继续适配和发布。
+> **AstraCat 目前处于 DEV 阶段。界面、项目格式和模型环境仍会调整，更新前请备份 `runtime/projects`。当前只发布 Windows x64 版本；macOS 和 Linux 会在 Windows 版稳定后继续适配和发布。**
 
 ## AstraCat 是什么
 
-AstraCat 是我为日常字幕制作写的桌面工具。
+AstraCat 是一款基于高性能 Avalonia 12.1.1 与 .NET 10 构建的跨平台智能字幕桌面工具。
 
 它把本地语音识别、字幕校对、翻译、播放器和时间轴放进同一个项目里。导入一段视频或音频后，可以一路做到字幕文件或带字幕的视频；如果手里已经有 SRT，也可以直接拖进工作区继续修改。
 
