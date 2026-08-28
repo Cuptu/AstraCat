@@ -38,7 +38,7 @@ jobs:
           python-version: "3.12"
 
       - name: Resolve package version
-        shell: powershell
+        shell: pwsh
         run: |
           if ($env:GITHUB_REF_TYPE -eq "tag") {
             $version = $env:GITHUB_REF_NAME.TrimStart("v")
@@ -58,22 +58,22 @@ jobs:
         run: dotnet restore AstraCat.csproj -r win-x64 --locked-mode
 
       - name: Build and check worker
-        shell: powershell
+        shell: pwsh
         run: |
           dotnet build AstraCat.csproj -c Release --no-restore -p:ContinuousIntegrationBuild=true
           python -m py_compile engines/asr_worker.py
 
       - name: Download verified native dependencies
-        shell: powershell
-        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\prepare-native-deps.ps1
+        shell: pwsh
+        run: ./scripts/prepare-native-deps.ps1
 
       - name: Install Inno Setup
-        shell: powershell
+        shell: pwsh
         run: choco install innosetup -y --no-progress
 
       - name: Build installer and portable package
-        shell: powershell
-        run: powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\package-release.ps1 -Version $env:ASTRACAT_VERSION -FfmpegDir .\runtime\tools\ffmpeg
+        shell: pwsh
+        run: ./package-release.ps1 -Version $env:ASTRACAT_VERSION -FfmpegDir ./runtime/tools/ffmpeg
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
