@@ -50,6 +50,17 @@ jobs:
           }
           "ASTRACAT_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
+      - name: Remove superseded DEV release
+        if: github.ref_type == 'tag' && github.ref_name == 'v0.1.1-DEV'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete v0.1.0-DEV --cleanup-tag --yes
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to remove superseded release v0.1.0-DEV."
+          }
+
       - name: Audit repository contents
         shell: pwsh
         run: ./scripts/audit-repository.ps1
@@ -94,8 +105,38 @@ jobs:
           files: |
             dist/AstraCat-v${{ env.ASTRACAT_VERSION }}-Setup.exe
             dist/AstraCat-v${{ env.ASTRACAT_VERSION }}-win-x64.zip
-            dist/AstraCat-v${{ env.ASTRACAT_VERSION }}-SHA256.txt
           generate_release_notes: true
           prerelease: true
           preserve_order: true
           fail_on_unmatched_files: true
+
+      - name: Upload and verify release checksum
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $checksum = "dist/AstraCat-v$env:ASTRACAT_VERSION-SHA256.txt"
+          if (-not (Test-Path -LiteralPath $checksum)) {
+            throw "Missing release checksum: $checksum"
+          }
+
+          gh release upload $env:GITHUB_REF_NAME $checksum --clobber
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to upload release checksum."
+          }
+
+          $expectedAssets = @(
+            "AstraCat-v$env:ASTRACAT_VERSION-Setup.exe",
+            "AstraCat-v$env:ASTRACAT_VERSION-win-x64.zip",
+            "AstraCat-v$env:ASTRACAT_VERSION-SHA256.txt"
+          )
+          $actualAssets = @(gh release view $env:GITHUB_REF_NAME --json assets --jq '.assets[].name')
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to inspect release assets."
+          }
+          foreach ($asset in $expectedAssets) {
+            if ($asset -notin $actualAssets) {
+              throw "Release asset was not published: $asset"
+            }
+          }

@@ -7,7 +7,7 @@
 **在 Windows 上完成转录、校对、翻译和字幕时间轴编辑。**
 
 [![Status](https://img.shields.io/badge/Status-DEV-F59E0B?style=flat-square&labelColor=1F2937)](https://github.com/Cuptu/AstraCat)
-[![Release](https://img.shields.io/github/v/release/Cuptu/AstraCat?style=flat-square&logo=github&label=Release&color=blue)](https://github.com/Cuptu/AstraCat/releases/latest)
+[![Release](https://img.shields.io/github/v/release/Cuptu/AstraCat?include_prereleases&style=flat-square&logo=github&label=Release&color=blue)](https://github.com/Cuptu/AstraCat/releases)
 [![Downloads](https://img.shields.io/github/downloads/Cuptu/AstraCat/total?style=flat-square&logo=github&label=Downloads&color=brightgreen)](https://github.com/Cuptu/AstraCat/releases)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20x64-0078D4?style=flat-square&logo=windows11&logoColor=white)](https://www.microsoft.com/windows)
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4?style=flat-square&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
