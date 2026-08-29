@@ -6,7 +6,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-    <Version>0.1.1-DEV</Version>
+    <Version>0.1.2-DEV</Version>
     <RepositoryUrl>https://github.com/Cuptu/AstraCat</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>

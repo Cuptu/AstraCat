@@ -79,7 +79,7 @@ AstraCat-v0.1.0-DEV-SHA256.txt
 `Build Windows release` 工作流有两种用法：
 
 - 在 Actions 页面手动运行：生成可下载的工作流产物，不创建 Release；
-- 推送 `v*` 标签：构建安装包并创建 GitHub Prerelease。
+- 推送 `v*` 标签：构建安装包并创建 GitHub Release。
 
 Release 顶部的固定介绍来自 [`.github/RELEASE_TEMPLATE.md`](../.github/RELEASE_TEMPLATE.md)，本次提交和合并记录由 GitHub 按 [`.github/release.yml`](../.github/release.yml) 自动分类并追加。发布前如需调整兼容性、已知问题或下载说明，先修改模板并提交到 `main`，再创建版本标签。
 
@@ -93,14 +93,14 @@ git tag -a v0.1.0-DEV -m "AstraCat 0.1.0-DEV"
 git push origin v0.1.0-DEV
 ```
 
-标签必须创建在已经通过 CI 的 `main` 提交上。工作流会把标签中的版本写入程序集、安装包文件名和 SHA-256 清单，随后上传 Actions Artifact，并创建带有安装包、便携包和校验文件的 Prerelease。DEV 结束前不要使用正式 `v1.0.0` 标签。
+标签必须创建在已经通过 CI 的 `main` 提交上。工作流会把标签中的版本写入程序集、安装包文件名和 SHA-256 清单，随后上传 Actions Artifact，并创建带有安装包、便携包和校验文件的 Latest Release。DEV 结束前不要使用正式 `v1.0.0` 标签。
 
 如果只想验证打包，不准备公开发布：进入 GitHub 仓库的 **Actions → Build Windows release → Run workflow**，填写版本号后运行。手动运行只保留 Actions Artifact，不创建 Release。
 
 发布完成后检查：
 
 1. `Build Windows release` 的所有步骤为绿色；
-2. Release 标记为 **Pre-release**；
+2. Release 已公开并标记为 **Latest**；
 3. `Setup.exe`、`win-x64.zip` 和 `SHA256.txt` 三个文件都已出现；
 4. 下载页中的版本号、DEV 提示和系统要求正确；
 5. 从安装包或便携版至少启动一次，确认主页、播放器和模型页可以打开。

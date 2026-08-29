@@ -50,17 +50,6 @@ jobs:
           }
           "ASTRACAT_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Remove superseded DEV release
-        if: github.ref_type == 'tag' && github.ref_name == 'v0.1.1-DEV'
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release delete v0.1.0-DEV --cleanup-tag --yes
-          if ($LASTEXITCODE -ne 0) {
-            throw "Failed to remove superseded release v0.1.0-DEV."
-          }
-
       - name: Audit repository contents
         shell: pwsh
         run: ./scripts/audit-repository.ps1
@@ -96,7 +85,7 @@ jobs:
             dist/AstraCat-v${{ env.ASTRACAT_VERSION }}-SHA256.txt
           if-no-files-found: error
 
-      - name: Create GitHub prerelease
+      - name: Create GitHub release
         if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v3
         with:
@@ -106,7 +95,8 @@ jobs:
             dist/AstraCat-v${{ env.ASTRACAT_VERSION }}-Setup.exe
             dist/AstraCat-v${{ env.ASTRACAT_VERSION }}-win-x64.zip
           generate_release_notes: true
-          prerelease: true
+          prerelease: false
+          make_latest: true
           preserve_order: true
           fail_on_unmatched_files: true
 
