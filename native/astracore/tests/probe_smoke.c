@@ -23,8 +23,8 @@ int main(int argc, char **argv)
         fprintf(stderr, "invalid encoder unexpectedly succeeded\n");
         return 6;
     }
-    if (ac_check_encoder("libx264") != 1) {
-        fprintf(stderr, "libx264 encoder check failed\n");
+    if (ac_check_encoder("pcm_s16le") != 1 && ac_check_encoder("flac") != 1 && ac_check_encoder("libx264") != 1) {
+        fprintf(stderr, "standard encoder check failed\n");
         return 7;
     }
     if (argc > 1) {

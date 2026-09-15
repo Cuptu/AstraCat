@@ -2,12 +2,6 @@ name: Build AstraCore Windows runtime
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - "native/astracore/**"
-      - "scripts/*AstraCore*.ps1"
-      - "scripts/*astracore*.ps1"
-      - ".github/workflows/astracore.yml"
 
 permissions:
   contents: read

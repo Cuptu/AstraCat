@@ -245,6 +245,14 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      - name: Download verified native dependencies
+        shell: pwsh
+        run: ./scripts/prepare-native-deps.ps1
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
+
       - name: Package Windows Release (Native AOT)
         shell: pwsh
         run: |
