@@ -4,23 +4,23 @@
 
 # AstraCat · 小猫做字幕
 
-**在 Windows 上完成转录、校对、翻译和字幕时间轴编辑。**
+**跨平台智能字幕制作工具（Windows / macOS / Linux）—— 本地语音识别、AI校对、双语翻译与多轨时间轴编辑。**
 
 [![Status](https://img.shields.io/badge/Status-DEV-F59E0B?style=flat-square&labelColor=1F2937)](https://github.com/Cuptu/AstraCat)
 [![Release](https://img.shields.io/github/v/release/Cuptu/AstraCat?include_prereleases&style=flat-square&logo=github&label=Release&color=blue)](https://github.com/Cuptu/AstraCat/releases)
 [![Downloads](https://img.shields.io/github/downloads/Cuptu/AstraCat/total?style=flat-square&logo=github&label=Downloads&color=brightgreen)](https://github.com/Cuptu/AstraCat/releases)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20x64-0078D4?style=flat-square&logo=windows11&logoColor=white)](https://www.microsoft.com/windows)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D4?style=flat-square&logo=linux&logoColor=white)](https://github.com/Cuptu/AstraCat)
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4?style=flat-square&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 [![Avalonia](https://img.shields.io/badge/Avalonia-12.1.1-8B44AC?style=flat-square)](https://avaloniaui.net/)
 [![Acceleration](https://img.shields.io/badge/Acceleration-CUDA%20%7C%20CPU-76B900?style=flat-square&logo=nvidia&logoColor=white&labelColor=555)](https://developer.nvidia.com/cuda-toolkit)
 [![License](https://img.shields.io/badge/License-GPL--3.0--only-green?style=flat-square)](./LICENSE)
 
-[下载](https://github.com/Cuptu/AstraCat/releases) · [开始使用](#开始使用) · [功能介绍](#界面与功能) · [构建与发布](./docs/BUILDING.md) · [问题反馈](https://github.com/Cuptu/AstraCat/issues)
+[下载安装](#开始使用) · [功能介绍](#界面与功能) · [快速上手](#第一次使用) · [构建与测试](./docs/BUILDING.md) · [问题反馈](https://github.com/Cuptu/AstraCat/issues)
 
 </div>
 
 > [!IMPORTANT]
-> **AstraCat 目前处于 DEV 阶段。界面、项目格式和模型环境仍会调整，更新前请备份 `runtime/projects`。当前只发布 Windows x64 版本；macOS 和 Linux 会在 Windows 版稳定后继续适配和发布。**
+> **AstraCat 基于高性能 Avalonia 12.1.1 与 .NET 10 构建，支持 Native AOT 原生机器码编译与纯 C 媒体音频核心 AstraCore。Windows、macOS 与 Linux 各平台均提供一键安装原生交付包（.exe 安装程序、.dmg 镜像、.AppImage 独立运行包与 .deb 安装包），开箱即用。**
 
 ## AstraCat 是什么
 
@@ -127,16 +127,16 @@ API Key 只保存在本机配置中。截图、日志和提交记录里仍然不
 
 ### 下载
 
-在 [GitHub Releases](https://github.com/Cuptu/AstraCat/releases) 下载 Windows x64 版本：
+在 [GitHub Releases](https://github.com/Cuptu/AstraCat/releases) 下载对应平台的原生交付包（全平台支持 Native AOT 机器码原生编译，免除 .NET 运行时依赖，极速启动）：
 
-| 文件 | 说明 |
-|---|---|
-| `AstraCat-v*-Setup.exe` | Windows 安装包 |
-| `AstraCat-v*-win-x64.zip` | 解压后直接运行 |
+| 平台 | 安装包格式 | 说明 |
+|---|---|---|
+| **Windows (x64)** | `AstraCat-v*-Setup.exe` | 原生安装向导程序，自动创建快捷方式与文件关联 |
+| **macOS (Apple Silicon)** | `AstraCat-v*-arm64.dmg` | 原生 Apple 磁盘镜像，挂载后拖拽至 Applications 即可运行 |
+| **Linux (x86_64)** | `AstraCat-v*-x86_64.AppImage` | 独立免安装可执行单文件，赋予执行权限后直接双击运行 |
+| **Linux (Debian / Ubuntu)** | `AstraCat-v*_amd64.deb` | 原生系统软件包，双击调起软件中心一键安装 |
 
-安装包包含 .NET 运行时、FFmpeg 和 libmpv，不包含语音模型和 CUDA 运行库。它们体积较大，需要时在应用内单独下载。
-
-当前安装包没有代码签名。Windows 第一次运行时可能显示“未知发布者”，请确认文件来自本仓库的 Releases 页面，并对照发布页提供的 SHA-256。
+所有安装程序均已内置 AstraCore 原生媒体引擎，无需用户预先安装 .NET SDK 或运行库。语音识别模型和可选 CUDA 运行库体积较大，首次使用时可在应用内按需下载。
 
 ### 第一次使用
 
@@ -227,17 +227,26 @@ git clone https://github.com/Cuptu/AstraCat.git
 cd AstraCat
 dotnet restore --locked-mode
 dotnet build -c Release --no-restore
+dotnet test
 python -m py_compile engines\asr_worker.py
 ```
 
-要启动播放器和导出功能，先下载并校验固定版本的原生依赖：
+Windows 开发可先下载并校验旧预编译依赖；正式发布使用统一 AstraCore：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\prepare-native-deps.ps1
 dotnet run -c Debug
+
+# 或从固定提交构建共享 FFmpeg/libmpv/libass 运行时
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\prepare-astracore-sources.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-astracore.ps1
+$env:ASTRACAT_MEDIA_RUNTIME = (Resolve-Path .\artifacts\astracore\win-x64).Path
+dotnet run -c Debug
 ```
 
-源码仓库不保存 libmpv、FFmpeg、模型、Python 环境和 CUDA 运行库。依赖脚本固定下载经过哈希校验的 shinchiro libmpv 与 BtbN FFmpeg 8.1.2 GPL Shared，并检查 `libx264`、`libx265`、`libsvtav1` 和 `aac`。
+源码仓库不保存构建产物、模型、Python 环境和 CUDA 运行库。AstraCore
+脚本固定 FFmpeg、mpv、libass、libplacebo 和 8-bit x265 的源码提交，生成
+一套共享 ABI，并检查软件编码器、三家硬件编码入口、D3D11VA 和运行时哈希。
 
 ### 构建检查
 
@@ -252,19 +261,21 @@ python -m py_compile engines\asr_worker.py
 需要先安装 Inno Setup 6，然后执行：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\prepare-native-deps.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File .\package-release.ps1 -Version 0.1.0-DEV -FfmpegDir .\runtime\tools\ffmpeg
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\prepare-astracore-sources.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-astracore.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\package-release.ps1 -Version 0.1.2-DEV -AstraCoreDir .\artifacts\astracore\win-x64
 ```
 
 脚本会生成：
 
 ```text
-dist/AstraCat-v0.1.0-DEV-Setup.exe
-dist/AstraCat-v0.1.0-DEV-win-x64.zip
-dist/AstraCat-v0.1.0-DEV-SHA256.txt
+dist/AstraCat-v0.1.2-DEV-Setup.exe
+dist/AstraCat-v0.1.2-DEV-win-x64.zip
+dist/AstraCat-v0.1.2-DEV-SHA256.txt
 ```
 
-它会检查 libmpv 哈希、FFmpeg 运行 DLL 和必需编码器，缺少依赖时直接停止，不生成不完整的发布包。
+它会检查 AstraCore 清单哈希、共享 ABI、依赖闭包、FFmpeg 功能白名单和
+200 MiB 硬上限；缺少能力或混入旧版 FFmpeg/libmpv 时直接停止。
 
 GitHub 上传范围、Actions 工作流和标签发布方法见 [构建与发布文档](./docs/BUILDING.md)。
 
@@ -272,23 +283,28 @@ GitHub 上传范围、Actions 工作流和标签发布方法见 [构建与发布
 <summary><b>项目结构</b></summary>
 
 ```text
-AstraCat-main/
-├─ Assets/                          图标和界面资源
-├─ Controls/                        自定义控件与字幕时间轴
-├─ Models/                          字幕和样式数据模型
-├─ Services/                        部署、媒体、播放与动效服务
-├─ Views/                           主窗口、编辑器与弹窗
-├─ benchmarks/                      mpv 渲染诊断窗口
-├─ docs/images/                     README 截图
-├─ engines/                         Python ASR Worker
-├─ installer/                       Inno Setup 脚本
-├─ scripts/                         依赖准备与仓库审计脚本
-├─ runtime/                         工具、模型、环境和项目数据
-├─ App.axaml                        应用资源与全局样式
-├─ Program.cs                       程序入口
-├─ AstraCat.csproj                  .NET 项目配置
-├─ packages.lock.json               NuGet 依赖锁定文件
-└─ package-release.ps1              Windows 发布脚本
+AstraCat/
+├─ Assets/                          应用图标、字体与界面视觉资产
+├─ Controls/                        高性能 DrawingContext 字幕时间轴与自定义控件
+├─ Models/                          字幕、样式、音频波形与工程数据模型
+├─ Services/                        领域服务层架构
+│  ├─ Animation/                    动效调度与 Easing 缓动曲线
+│  ├─ Media/                        播放器、波形提取与媒体导出服务
+│  ├─ Native/                       AstraCore C ABI 跨平台动态库载入桥
+│  ├─ Workers/                      Python 隔离子进程 ASR Worker 客户端
+│  └─ Workspace/                    工程事务仓储与工作区会话管理
+├─ Views/                           Avalonia 界面窗口与浮层组件
+├─ tests/                           自动化单元测试 (MSTest / .NET 10)
+├─ native/                          纯 C 语言高性能 AstraCore 媒体音频核心源码
+├─ engines/                         Python ASR Worker 常驻引擎
+├─ installer/                       Windows Inno Setup 原生安装程序脚本
+├─ scripts/                         全平台构建、发布打包与安全审计脚本
+├─ runtime/                         本地模型、独立环境与项目持久化目录
+├─ App.axaml                        应用资源与主题配置
+├─ Program.cs                       程序启动入口与平台渲染上下文初始化
+├─ AstraCat.slnx                    现代跨平台解决方案
+├─ AstraCat.csproj                  .NET 10 / Avalonia 项目配置
+└─ packages.lock.json               NuGet 依赖锁定文件
 ```
 
 界面使用 Avalonia 12.1.1，播放器通过 libmpv Render API 绘制，媒体探测和导出由 FFmpeg 子进程完成，语音模型运行在独立的 Python Worker 中。
@@ -348,6 +364,9 @@ AstraCat-main/
 各组件和模型使用各自的许可证。发布二进制文件时，需要同时遵守相应的再分发与署名要求。
 
 ## 许可证
+
+原生媒体运行时的统一构建、字幕接口边界、多平台策略和 FFmpeg CLI
+迁移路线见 [AstraCore media runtime](docs/ASTRACORE.md)。
 
 AstraCat 使用 [GNU General Public License v3.0](LICENSE)，SPDX 标识为 `GPL-3.0-only`。
 

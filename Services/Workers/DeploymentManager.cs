@@ -82,9 +82,13 @@ public sealed class DeploymentManager
     public string AppRoot { get; } = FindAppRoot();
     public string RuntimeRoot => Path.Combine(AppRoot, "runtime");
     public string PythonRoot => Path.Combine(RuntimeRoot, "python");
-    public string PythonExecutable => Path.Combine(PythonRoot, "Scripts", "python.exe");
+    public string PythonExecutable => OperatingSystem.IsWindows()
+        ? Path.Combine(PythonRoot, "Scripts", "python.exe")
+        : Path.Combine(PythonRoot, "bin", "python");
     private string PythonBaseRoot => Path.Combine(RuntimeRoot, "python-base");
-    private string PythonBaseExecutable => Path.Combine(PythonBaseRoot, "python.exe");
+    private string PythonBaseExecutable => OperatingSystem.IsWindows()
+        ? Path.Combine(PythonBaseRoot, "python.exe")
+        : Path.Combine(PythonBaseRoot, "bin", "python");
     public string ModelRoot => Path.Combine(RuntimeRoot, "models");
     public string EnvironmentRoot => Path.Combine(RuntimeRoot, "e");
     public string GpuRuntimeRoot => Path.Combine(RuntimeRoot, "gpu");
@@ -92,7 +96,9 @@ public sealed class DeploymentManager
     public string GetRuntimePythonExecutable(string runtimeId) => runtimeId switch
     {
         "nvidia-runtime" or "funasr-runtime" or "nemo-runtime" or "moss-runtime" =>
-            Path.Combine(EnvironmentRoot, RuntimeFolderName(runtimeId), "Scripts", "python.exe"),
+            OperatingSystem.IsWindows()
+                ? Path.Combine(EnvironmentRoot, RuntimeFolderName(runtimeId), "Scripts", "python.exe")
+                : Path.Combine(EnvironmentRoot, RuntimeFolderName(runtimeId), "bin", "python"),
         _ => PythonExecutable
     };
 
@@ -126,7 +132,7 @@ public sealed class DeploymentManager
             if (!forceRefresh && _cachedStates is not null && (DateTime.UtcNow - _lastInspectTime) < InspectCacheTtl)
                 return _cachedStates;
 
-            var sitePackages = Path.Combine(PythonRoot, "Lib", "site-packages");
+            var sitePackages = ResolveSitePackages(PythonRoot);
             // Starting Python merely to read its version is the most expensive part
             // of inspection. Reuse the result until the executable fingerprint changes.
             var pythonReady = IsManagedPythonReady();
@@ -278,9 +284,9 @@ public sealed class DeploymentManager
             "nvidia-runtime" => PipArguments(
                 "transformers>=5.9.0,<6 torch accelerate librosa soundfile sentencepiece " +
                 "huggingface-hub>=1.5,<2 tokenizers>=0.23.1,<0.24 safetensors>=0.8 typer", source),
-            "funasr-runtime" => PipArguments("funasr==1.4.4 modelscope huggingface-hub", source),
+            "funasr-runtime" => PipArguments("funasr==1.4.4 modelscope==1.22.0 huggingface-hub==0.28.1", source),
             "nemo-runtime" => PipArguments("nemo_toolkit[asr]>=2.5,<4", source),
-            "moss-runtime" => PipArguments("git+https://github.com/OpenMOSS/MOSS-Transcribe-Diarize.git", source),
+            "moss-runtime" => PipArguments("git+https://github.com/OpenMOSS/MOSS-Transcribe-Diarize.git@main", source),
             "whisper-tiny" => SnapshotArguments("Systran/faster-whisper-tiny", Path.Combine(ModelRoot, "whisper-tiny"), source),
             "whisper-base" => SnapshotArguments("Systran/faster-whisper-base", Path.Combine(ModelRoot, "whisper-base"), source),
             "whisper-small" => SnapshotArguments("Systran/faster-whisper-small", Path.Combine(ModelRoot, "whisper-small"), source),
@@ -319,7 +325,7 @@ public sealed class DeploymentManager
     public async Task<string?> GetWhisperCudaWarningAsync(CancellationToken token)
     {
         if (!IsPython312(PythonExecutable) ||
-            !Directory.Exists(Path.Combine(PythonRoot, "Lib", "site-packages", "ctranslate2")))
+            !Directory.Exists(Path.Combine(ResolveSitePackages(PythonRoot), "ctranslate2")))
             return null;
 
         var info = new ProcessStartInfo
@@ -419,7 +425,7 @@ public sealed class DeploymentManager
 
     private async Task<bool> ProbeTorchCudaAsync(string pythonExecutable, CancellationToken token)
     {
-        var baseTorch = Path.Combine(PythonRoot, "Lib", "site-packages", "torch", "__init__.py");
+        var baseTorch = Path.Combine(ResolveSitePackages(PythonRoot), "torch", "__init__.py");
         var runtimeTorch = Path.Combine(
             RuntimeSitePackages("nvidia-runtime"), "torch", "__init__.py");
         var torchPath = File.Exists(runtimeTorch) ? runtimeTorch : baseTorch;
@@ -645,7 +651,7 @@ public sealed class DeploymentManager
     {
         Directory.CreateDirectory(GpuRuntimeRoot);
         var temporary = ActiveCudaPath + ".tmp";
-        File.WriteAllText(temporary, JsonSerializer.Serialize(new { version }));
+        File.WriteAllText(temporary, AotJson.Serialize(new Dictionary<string, object?> { ["version"] = version }));
         File.Move(temporary, ActiveCudaPath, overwrite: true);
     }
 
@@ -660,13 +666,18 @@ public sealed class DeploymentManager
 
         try
         {
-            var candidates = new[]
-            {
-                "nvidia-smi.exe",
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "nvidia-smi.exe"),
-                @"C:\Program Files\NVIDIA Corporation\NVSMI\nvidia-smi.exe"
-            };
-            var executable = candidates.FirstOrDefault(File.Exists) ?? "nvidia-smi.exe";
+            string[] candidates = OperatingSystem.IsWindows()
+                ? [
+                    "nvidia-smi.exe",
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "nvidia-smi.exe"),
+                    @"C:\Program Files\NVIDIA Corporation\NVSMI\nvidia-smi.exe"
+                  ]
+                : [
+                    "nvidia-smi",
+                    "/usr/bin/nvidia-smi",
+                    "/usr/local/bin/nvidia-smi"
+                  ];
+            var executable = candidates.FirstOrDefault(File.Exists) ?? (OperatingSystem.IsWindows() ? "nvidia-smi.exe" : "nvidia-smi");
 
             var info = new ProcessStartInfo
             {
@@ -855,7 +866,7 @@ public sealed class DeploymentManager
 
     private async Task EnsurePipAsync(IProgress<DeploymentProgress>? progress, CancellationToken token)
     {
-        var pipPackage = Path.Combine(PythonRoot, "Lib", "site-packages", "pip");
+        var pipPackage = Path.Combine(ResolveSitePackages(PythonRoot), "pip");
         if (Directory.Exists(pipPackage)) return;
 
         progress?.Report(new DeploymentProgress("正在初始化安装环境…"));
@@ -872,8 +883,24 @@ public sealed class DeploymentManager
             return;
         }
 
-        if (!OperatingSystem.IsWindows() || !Environment.Is64BitOperatingSystem)
-            throw new PlatformNotSupportedException("自动安装 Python 当前仅支持 Windows x64。");
+        if (!OperatingSystem.IsWindows())
+        {
+            var systemPython = FindSystemPython312();
+            if (systemPython is not null)
+            {
+                await CreateBaseVirtualEnvironmentAsync(systemPython, progress, token);
+                if (IsPython312(PythonExecutable))
+                {
+                    InvalidateInspectCache();
+                    progress?.Report(new DeploymentProgress("Python 3.12 虚拟环境已就绪", 1));
+                    return;
+                }
+            }
+            throw new PlatformNotSupportedException("非 Windows 平台请安装 Python 3.12 并确保 python3 命令在 PATH 中，或准备 runtime/python 虚拟环境。");
+        }
+
+        if (!Environment.Is64BitOperatingSystem)
+            throw new PlatformNotSupportedException("自动安装 Python 当前仅支持 64 位操作系统。");
 
         // Always use the runtime stored under this AstraCat installation. This keeps
         // package versions and uninstall behavior independent from every other app.
@@ -1049,7 +1076,9 @@ public sealed class DeploymentManager
             info.ArgumentList.Add(staging);
             await RunProcessAsync(info, token, "无法创建 Python 隔离环境。");
 
-            var stagedPython = Path.Combine(staging, "Scripts", "python.exe");
+            var stagedPython = OperatingSystem.IsWindows()
+                ? Path.Combine(staging, "Scripts", "python.exe")
+                : Path.Combine(staging, "bin", "python");
             if (!IsPython312(stagedPython))
                 throw new InvalidOperationException("新建的 Python 隔离环境无法启动。");
 
@@ -1147,11 +1176,11 @@ public sealed class DeploymentManager
         // Python's nested venv only inherits the underlying system interpreter's
         // packages, not the parent AstraCat venv. Add the parent site-packages
         // explicitly so large shared packages such as Torch are not duplicated.
-        var isolatedSitePackages = Path.Combine(target, "Lib", "site-packages");
+        var isolatedSitePackages = ResolveSitePackages(target);
         Directory.CreateDirectory(isolatedSitePackages);
         await File.WriteAllTextAsync(
             Path.Combine(isolatedSitePackages, "_astracat_base.pth"),
-            Path.Combine(PythonRoot, "Lib", "site-packages") + Environment.NewLine,
+            ResolveSitePackages(PythonRoot) + Environment.NewLine,
             new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), token);
     }
 
@@ -1410,11 +1439,7 @@ public sealed class DeploymentManager
         _ => null
     };
 
-    public static void OpenFolder(string path)
-    {
-        Directory.CreateDirectory(path);
-        Process.Start(new ProcessStartInfo("explorer.exe", $"\"{path}\"") { UseShellExecute = true });
-    }
+    public static void OpenFolder(string path) => PlatformHelper.OpenFolder(path);
 
     private DeploymentState ModelState(string folderName, string pattern)
     {
@@ -1466,12 +1491,35 @@ public sealed class DeploymentManager
 
     private static DeploymentState State(string id, bool installed, string path) => new(id, installed, path);
 
+    private static string ResolveSitePackages(string root)
+    {
+        var winPath = Path.Combine(root, "Lib", "site-packages");
+        if (Directory.Exists(winPath)) return winPath;
+        var unixLib = Path.Combine(root, "lib");
+        if (Directory.Exists(unixLib))
+        {
+            try
+            {
+                var pyDirs = Directory.GetDirectories(unixLib, "python3*");
+                if (pyDirs.Length > 0)
+                {
+                    var sp = Path.Combine(pyDirs[0], "site-packages");
+                    if (Directory.Exists(sp)) return sp;
+                }
+            }
+            catch { }
+        }
+        return OperatingSystem.IsWindows()
+            ? winPath
+            : Path.Combine(root, "lib", "python3.12", "site-packages");
+    }
+
     private string RuntimeSitePackages(string id) =>
-        Path.Combine(RuntimePath(id), "Lib", "site-packages");
+        ResolveSitePackages(RuntimePath(id));
 
     private bool RuntimeCanResolvePackage(string runtimeSitePackages, string package)
     {
-        var baseSitePackages = Path.Combine(PythonRoot, "Lib", "site-packages");
+        var baseSitePackages = ResolveSitePackages(PythonRoot);
         return Directory.Exists(Path.Combine(runtimeSitePackages, package)) ||
                File.Exists(Path.Combine(runtimeSitePackages, package + ".py")) ||
                Directory.Exists(Path.Combine(baseSitePackages, package)) ||
@@ -1614,11 +1662,9 @@ public sealed class DeploymentManager
             : $"-m pip install {package} --index-url https://pypi.tuna.tsinghua.edu.cn/simple " +
               "--extra-index-url https://pypi.org/simple --progress-bar raw --disable-pip-version-check";
 
-    private static string PipArgumentsWithoutDependencies(string package, ModelDownloadSource source) =>
-        PipArguments(package, source) + " --no-deps";
-
-    private static string FindAppRoot()
+    internal static string FindAppRoot()
     {
+        if (NativeAotSmoke.ApplicationRoot is { } smokeRoot) return smokeRoot;
         foreach (var start in new[] { AppContext.BaseDirectory, Environment.CurrentDirectory })
         {
             var directory = new DirectoryInfo(start);
@@ -1630,5 +1676,31 @@ public sealed class DeploymentManager
             }
         }
         return AppContext.BaseDirectory;
+    }
+
+    private static string? FindSystemPython312()
+    {
+        foreach (var candidate in new[] { "python3.12", "python3" })
+        {
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = candidate,
+                    Arguments = "-c \"import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')\"",
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                using var proc = Process.Start(psi);
+                if (proc is null) continue;
+                var output = proc.StandardOutput.ReadToEnd().Trim();
+                proc.WaitForExit();
+                if (proc.ExitCode == 0 && output == "3.12")
+                    return candidate;
+            }
+            catch { }
+        }
+        return null;
     }
 }

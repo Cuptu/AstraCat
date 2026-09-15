@@ -6,7 +6,7 @@ $repositoryRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $excludedDirectoryNames = [Collections.Generic.HashSet[string]]::new(
     [StringComparer]::OrdinalIgnoreCase
 )
-foreach ($name in @(".git", ".vs", ".idea", ".vscode", "bin", "obj", "dist", "artifacts", "TestResults", "runtime", "runtimes", "__pycache__")) {
+foreach ($name in @(".git", ".vs", ".idea", ".vscode", "bin", "obj", "dist", "artifacts", "TestResults", "runtime", "runtimes", "__pycache__", "FFmpeg-n9.0.1", "mpv-0.41.0", "build", "build-asan", "packages-20260904")) {
     [void]$excludedDirectoryNames.Add($name)
 }
 
@@ -57,7 +57,7 @@ $contentRules = @(
     @{ Name = "硬编码凭据"; Pattern = '(?i)(api[_-]?key|secret|token|password)\s*[:=]\s*["''][^"'']{8,}["'']' },
     @{ Name = "本机绝对路径"; Pattern = '(?i)[A-Z]:\\Users\\|C:/Users/|/Users/[^/]+/|/home/[^/]+' },
     @{ Name = "未清理的代码标记"; Pattern = '(?i)(?<![A-Za-z0-9_])(TODO|FIXME|HACK|XXX)(?![A-Za-z0-9_])' },
-    @{ Name = "临时设计注释"; Pattern = '(?i)modeled after|image\s*[0-9]|NO aggressive|//\s*(ignore|fall back)\s*$' }
+    @{ Name = "临时设计注释"; Pattern = '(?i)modeled after|\bimage\s+[0-9]|NO aggressive|//\s*(ignore|fall back)\s*$' }
 )
 
 foreach ($file in $files) {

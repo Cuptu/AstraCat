@@ -5,7 +5,12 @@ public sealed class SubtitleStyleDefinition
     public string Id { get; set; } = "main";
     public string Name { get; set; } = "中文默认样式";
     public string AccentColor { get; set; } = "#3A9BF4";
-    public string FontFamily { get; set; } = "Microsoft YaHei";
+    public static string DefaultFontFamily =>
+        OperatingSystem.IsMacOS() ? "PingFang SC" :
+        OperatingSystem.IsLinux() ? "Noto Sans CJK SC" :
+        "Microsoft YaHei";
+
+    public string FontFamily { get; set; } = DefaultFontFamily;
     public double FontSize { get; set; } = 70;
     public string TextColor { get; set; } = "#FFFFFF";
     public string OutlineColor { get; set; } = "#22263B";

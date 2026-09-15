@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 namespace AstraCat;
 
 internal static class MediaToolLocator
@@ -7,20 +9,73 @@ internal static class MediaToolLocator
 
     public static string? FindLibMpv()
     {
+        var astraCore = AstraCoreRuntime.Current?.Resolve("libmpv");
+        if (astraCore is not null) return astraCore;
         var name = OperatingSystem.IsWindows() ? "libmpv-2.dll" : OperatingSystem.IsMacOS() ? "libmpv.2.dylib" : "libmpv.so.2";
-        return FindFile(
+        var rid = OperatingSystem.IsWindows()
+            ? (Environment.Is64BitProcess ? "win-x64" : "win-x86")
+            : OperatingSystem.IsMacOS()
+                ? (RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "osx-arm64" : "osx-x64")
+                : (RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "linux-arm64" : "linux-x64");
+
+        var candidates = new List<string>
+        {
             Path.Combine(AppContext.BaseDirectory, "runtime", "tools", "mpv", name),
             Path.Combine(Environment.CurrentDirectory, "runtime", "tools", "mpv", name),
             Path.Combine(AppContext.BaseDirectory, name),
-            Path.Combine(Environment.CurrentDirectory, "runtimes", "win-x64", "native", name));
+            Path.Combine(Environment.CurrentDirectory, "runtimes", rid, "native", name),
+            Path.Combine(AppContext.BaseDirectory, "runtimes", rid, "native", name)
+        };
+
+        if (OperatingSystem.IsMacOS())
+        {
+            candidates.Add("/opt/homebrew/lib/" + name);
+            candidates.Add("/usr/local/lib/" + name);
+            candidates.Add("/opt/homebrew/lib/libmpv.dylib");
+            candidates.Add("/usr/local/lib/libmpv.dylib");
+        }
+        else if (OperatingSystem.IsLinux())
+        {
+            candidates.Add("/usr/lib/x86_64-linux-gnu/" + name);
+            candidates.Add("/usr/lib/aarch64-linux-gnu/" + name);
+            candidates.Add("/usr/lib/" + name);
+            candidates.Add("/usr/local/lib/" + name);
+            candidates.Add("/usr/lib/x86_64-linux-gnu/libmpv.so");
+            candidates.Add("/usr/lib/aarch64-linux-gnu/libmpv.so");
+            candidates.Add("/usr/lib/libmpv.so");
+            candidates.Add("/usr/local/lib/libmpv.so");
+        }
+
+        var found = FindFile(candidates.ToArray());
+        if (found is not null) return found;
+
+        if (NativeLibrary.TryLoad(name, out var handle))
+        {
+            NativeLibrary.Free(handle);
+            return name;
+        }
+
+        if (OperatingSystem.IsMacOS() && NativeLibrary.TryLoad("libmpv.dylib", out var macHandle))
+        {
+            NativeLibrary.Free(macHandle);
+            return "libmpv.dylib";
+        }
+
+        if (OperatingSystem.IsLinux() && NativeLibrary.TryLoad("libmpv.so", out var linuxHandle))
+        {
+            NativeLibrary.Free(linuxHandle);
+            return "libmpv.so";
+        }
+
+        return null;
     }
 
-    public static string? FindFfmpeg() => Find(
+    public static string? FindFfmpeg() => AstraCoreRuntime.Current?.Resolve("ffmpeg") ?? Find(
         "ffmpeg",
         Path.Combine(AppContext.BaseDirectory, "runtime", "tools", "ffmpeg", Executable("ffmpeg")),
         Path.Combine(Environment.CurrentDirectory, "runtime", "tools", "ffmpeg", Executable("ffmpeg")));
 
-    public static string? FindFfprobe() => Find(
+    public static string? FindFfprobe() => AstraCoreRuntime.Current?.Resolve("ffprobe") ?? Find(
         "ffprobe",
         Path.Combine(AppContext.BaseDirectory, "runtime", "tools", "ffmpeg", Executable("ffprobe")),
         Path.Combine(Environment.CurrentDirectory, "runtime", "tools", "ffmpeg", Executable("ffprobe")));
@@ -40,6 +95,9 @@ internal static class MediaToolLocator
         foreach (var candidate in candidates)
             if (!string.IsNullOrWhiteSpace(candidate) && File.Exists(candidate))
                 return Path.GetFullPath(candidate);
+
+        if (!string.Equals(Environment.GetEnvironmentVariable("ASTRACAT_ALLOW_SYSTEM_MEDIA_TOOLS"), "1", StringComparison.Ordinal))
+            return null;
 
         lock (PathLookupSync)
         {

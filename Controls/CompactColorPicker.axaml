@@ -2,7 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:primitives="clr-namespace:Avalonia.Controls.Primitives;assembly=Avalonia.Controls.ColorPicker"
              x:Class="AstraCat.CompactColorPicker"
-             x:CompileBindings="False">
+             x:CompileBindings="True">
   <Button x:Name="PickerButton" Height="42" Padding="12,0"
           Background="White" BorderBrush="#E1E5EA" BorderThickness="1"
           CornerRadius="18" HorizontalContentAlignment="Stretch" Cursor="Hand">

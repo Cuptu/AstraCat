@@ -1,0 +1,25 @@
+LIBRARY libEGL
+
+EXPORTS
+    eglBindAPI=av_libglesv2.EGL_BindAPI
+    eglBindTexImage=av_libglesv2.EGL_BindTexImage
+    eglChooseConfig=av_libglesv2.EGL_ChooseConfig
+    eglCreateContext=av_libglesv2.EGL_CreateContext
+    eglCreatePbufferFromClientBuffer=av_libglesv2.EGL_CreatePbufferFromClientBuffer
+    eglCreateWindowSurface=av_libglesv2.EGL_CreateWindowSurface
+    eglDestroyContext=av_libglesv2.EGL_DestroyContext
+    eglDestroySurface=av_libglesv2.EGL_DestroySurface
+    eglGetConfigAttrib=av_libglesv2.EGL_GetConfigAttrib
+    eglGetCurrentContext=av_libglesv2.EGL_GetCurrentContext
+    eglGetCurrentDisplay=av_libglesv2.EGL_GetCurrentDisplay
+    eglGetDisplay=av_libglesv2.EGL_GetDisplay
+    eglGetError=av_libglesv2.EGL_GetError
+    eglGetProcAddress=av_libglesv2.EGL_GetProcAddress
+    eglInitialize=av_libglesv2.EGL_Initialize
+    eglMakeCurrent=av_libglesv2.EGL_MakeCurrent
+    eglQueryString=av_libglesv2.EGL_QueryString
+    eglReleaseTexImage=av_libglesv2.EGL_ReleaseTexImage
+    eglSwapBuffers=av_libglesv2.EGL_SwapBuffers
+    eglSwapInterval=av_libglesv2.EGL_SwapInterval
+    eglTerminate=av_libglesv2.EGL_Terminate
+    eglWaitClient=av_libglesv2.EGL_WaitClient

@@ -38,5 +38,8 @@ jobs:
       - name: Build
         run: dotnet build AstraCat.csproj -c Release --no-restore -p:ContinuousIntegrationBuild=true
 
+      - name: Run unit tests
+        run: dotnet test tests/AstraCat.Tests/AstraCat.Tests.csproj -c Release
+
       - name: Check Python worker syntax
         run: python -m py_compile engines/asr_worker.py

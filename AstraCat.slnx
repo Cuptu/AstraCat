@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/tests/">
+    <Project Path="tests/AstraCat.Tests/AstraCat.Tests.csproj" />
+  </Folder>
+  <Project Path="AstraCat.csproj" />
+</Solution>

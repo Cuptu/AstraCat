@@ -31,7 +31,7 @@ public sealed record ModelCatalogResult(
 /// compatibility allow-list. Hub popularity is never treated as proof that an
 /// arbitrary repository can be deployed by AstraCat.
 /// </summary>
-public sealed class ModelCatalogService : IDisposable
+public sealed partial class ModelCatalogService : IDisposable
 {
     private sealed record CatalogEntry(string DeploymentId, string RepositoryId, string Category);
 
@@ -235,7 +235,7 @@ public sealed class ModelCatalogService : IDisposable
         {
             if (!File.Exists(_cachePath)) return null;
             await using var stream = File.OpenRead(_cachePath);
-            var cached = await JsonSerializer.DeserializeAsync<CachedCatalog>(stream, cancellationToken: token);
+            var cached = await AotJson.DeserializeAsync<CachedCatalog>(stream, cancellationToken: token);
             if (cached is null || cached.Models is null ||
                 cached.RefreshedAt > DateTimeOffset.UtcNow.AddMinutes(5) ||
                 DateTimeOffset.UtcNow - cached.RefreshedAt > DiskCacheTtl)
@@ -264,7 +264,7 @@ public sealed class ModelCatalogService : IDisposable
             var directory = Path.GetDirectoryName(_cachePath);
             if (!string.IsNullOrWhiteSpace(directory)) Directory.CreateDirectory(directory);
             await using (var stream = File.Create(temporaryPath))
-                await JsonSerializer.SerializeAsync(stream, cache, cancellationToken: token);
+                await AotJson.SerializeAsync(stream, cache, cancellationToken: token);
             File.Move(temporaryPath, _cachePath, overwrite: true);
         }
         catch (IOException)

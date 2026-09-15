@@ -371,7 +371,7 @@ public sealed class MotionService
         scale.ScaleY = 0;
     }
 
-    public async void RibbleDownloadTask(Border ripple)
+    public async Task RippleDownloadTaskAsync(Border ripple)
     {
         var scale = ripple.RenderTransform as ScaleTransform ?? new ScaleTransform(1, 1);
         ripple.RenderTransformOrigin = new RelativePoint(0.5, 0.5, RelativeUnit.Relative);
@@ -387,12 +387,22 @@ public sealed class MotionService
                 OpacityTrack(ripple, -0.5, 1000, 0, Linear)
             }, $"Download Button Ripple {Id(ripple)}");
         }
-        catch (TaskCanceledException)
+        catch (Exception ex) when (ex is TaskCanceledException or OperationCanceledException)
         {
             return;
         }
-        ripple.Opacity = 0;
+        catch
+        {
+            // 防御性静默，避免动画失败影响主程序
+        }
+        finally
+        {
+            ripple.Opacity = 0;
+        }
     }
+
+    [Obsolete("Use RippleDownloadTaskAsync instead")]
+    public void RibbleDownloadTask(Border ripple) => _ = RippleDownloadTaskAsync(ripple);
 
     public void AnimateDownloadTaskProgress(Border fill, double targetHeight)
     {

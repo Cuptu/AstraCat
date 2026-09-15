@@ -36,7 +36,7 @@ namespace AstraCat;
 
 public partial class MainWindow : Window
 {
-    private sealed class CaptionProject
+    internal sealed class CaptionProject
     {
         public string Id { get; set; } = Guid.NewGuid().ToString("N");
         public string Name { get; set; } = "未命名项目";
@@ -382,6 +382,9 @@ public partial class MainWindow : Window
     private string _catalogStatus = string.Empty;
     private double _catalogLoadingTilePhase;
     private string? _activeProjectId;
+    private readonly ProjectSession _projectSession = new();
+    private CaptionProject? ActiveProject =>
+        _projectSession.ActiveProject ?? _projects.FirstOrDefault(item => item.Id == _activeProjectId);
     private Control _activeProjectSectionView = null!;
     private int _projectSectionIndex;
     private bool _loadingProjectTranscription;
@@ -534,7 +537,7 @@ public partial class MainWindow : Window
         try
         {
             await _motion.WindowEnterAsync(this, WindowChrome, sidebarItems);
-            Title = "AstraCaptioner · 小猫做字幕";
+            Title = "AstraCat · 小猫做字幕";
             Dispatcher.UIThread.Post(PrewarmSecondaryPages, DispatcherPriority.Background);
         }
         catch (OperationCanceledException)
@@ -547,7 +550,7 @@ public partial class MainWindow : Window
             // instead of leaving a transparent, untargetable surface.
             Opacity = 1;
             WindowChrome.RenderTransform = null;
-            Title = $"AstraCaptioner · 动画错误：{exception.Message}";
+            Title = $"AstraCat · 动画错误：{exception.Message}";
         }
     }
 
@@ -625,7 +628,7 @@ public partial class MainWindow : Window
         }
         catch (Exception exception)
         {
-            Title = $"AstraCaptioner · 播放器关闭失败：{ShortMessage(exception.Message)}";
+            Title = $"AstraCat · 播放器关闭失败：{ShortMessage(exception.Message)}";
             _isClosing = false;
             return;
         }
@@ -1263,7 +1266,7 @@ public partial class MainWindow : Window
                 _translationProfiles[providerId] = profile;
             _deletedTranslationProviders.Clear();
             if (!File.Exists(TranslationSettingsPath)) return;
-            var settings = JsonSerializer.Deserialize<TranslationModelSettings>(File.ReadAllText(TranslationSettingsPath));
+            var settings = AotJson.Deserialize<TranslationModelSettings>(File.ReadAllText(TranslationSettingsPath));
             if (settings?.Profiles is null) return;
 
             foreach (var provider in settings.DeletedProviders ?? [])
@@ -1351,7 +1354,7 @@ public partial class MainWindow : Window
             Profiles = new Dictionary<string, TranslationProviderProfile>(_translationProfiles, StringComparer.OrdinalIgnoreCase),
             DeletedProviders = _deletedTranslationProviders.OrderBy(provider => provider).ToList()
         };
-        File.WriteAllText(TranslationSettingsPath, JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true }));
+        File.WriteAllText(TranslationSettingsPath, AotJson.Serialize(settings, new JsonSerializerOptions { WriteIndented = true }));
     }
 
     private void RebuildProjectProviderOptions()
@@ -2007,6 +2010,8 @@ public partial class MainWindow : Window
             SaveActiveProjectTranslationCache();
         }
         _activeProjectId = project.Id;
+        _projectSession.ActiveProjectId = project.Id;
+        _projectSession.ActiveProject = project;
         ProjectTitleText.Text = project.Name;
         RefreshProjectWorkflow(project);
         RefreshProjectTranscriptionModelSelection(project);
@@ -2363,29 +2368,28 @@ public partial class MainWindow : Window
     {
         var directory = Path.Combine(_deployment.RuntimeRoot, "config");
         Directory.CreateDirectory(directory);
-        var settings = new
-        {
-            model = modelId,
-            device = project.TranscriptionDevice,
-            language = project.TranscriptionLanguage,
-            precision = project.TranscriptionPrecision,
-            beamSize = project.TranscriptionBeamSize,
-            vad = project.EnableVadFilter,
-            vadThreshold = project.VadThreshold,
-            vadMinSilence = project.VadMinSilence,
-            vadSpeechPad = project.VadSpeechPad,
-            maxTokens = project.TranscriptionMaxTokens,
-            timestamps = project.EnableWordTimestamps,
-            hotwords = project.TranscriptionHotwords,
-            emotionDetection = project.EnableEmotion,
-            audioEventDetection = project.EnableAudioEvent,
-            speakerCount = project.TranscriptionSpeakerCount,
-            diarization = project.EnableDiarization,
-            temperature = project.TranscriptionTemperature,
-            chunkSeconds = project.TranscriptionChunkSeconds,
-            advanced = new Dictionary<string, object?>()
+        var settings = new Dictionary<string, object?> {
+            ["model"] = modelId,
+            ["device"] = project.TranscriptionDevice,
+            ["language"] = project.TranscriptionLanguage,
+            ["precision"] = project.TranscriptionPrecision,
+            ["beamSize"] = project.TranscriptionBeamSize,
+            ["vad"] = project.EnableVadFilter,
+            ["vadThreshold"] = project.VadThreshold,
+            ["vadMinSilence"] = project.VadMinSilence,
+            ["vadSpeechPad"] = project.VadSpeechPad,
+            ["maxTokens"] = project.TranscriptionMaxTokens,
+            ["timestamps"] = project.EnableWordTimestamps,
+            ["hotwords"] = project.TranscriptionHotwords,
+            ["emotionDetection"] = project.EnableEmotion,
+            ["audioEventDetection"] = project.EnableAudioEvent,
+            ["speakerCount"] = project.TranscriptionSpeakerCount,
+            ["diarization"] = project.EnableDiarization,
+            ["temperature"] = project.TranscriptionTemperature,
+            ["chunkSeconds"] = project.TranscriptionChunkSeconds,
+            ["advanced"] = new Dictionary<string, object?>()
         };
-        var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
+        var json = AotJson.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
         File.WriteAllText(Path.Combine(directory, $"{modelId}.json"), json);
         File.WriteAllText(Path.Combine(directory, "asr-settings.json"), json);
     }
@@ -2753,7 +2757,7 @@ public partial class MainWindow : Window
         {
             if (File.Exists(ProjectStorePath))
             {
-                var loaded = JsonSerializer.Deserialize<List<CaptionProject>>(File.ReadAllText(ProjectStorePath));
+                var loaded = AotJson.Deserialize<List<CaptionProject>>(File.ReadAllText(ProjectStorePath));
                 if (loaded is not null) _projects.AddRange(loaded);
                 storedIndexLoaded = true;
             }
@@ -2784,11 +2788,6 @@ public partial class MainWindow : Window
             if (migrated) SaveProjects();
             return;
         }
-        _projects.AddRange(
-        [
-            new CaptionProject { Name = "产品发布会" },
-            new CaptionProject { Name = "课程样片" }
-        ]);
         SaveProjects();
     }
 
@@ -2798,7 +2797,7 @@ public partial class MainWindow : Window
         {
             var directory = Path.GetDirectoryName(ProjectStorePath)!;
             Directory.CreateDirectory(directory);
-            File.WriteAllText(ProjectStorePath, JsonSerializer.Serialize(_projects,
+            File.WriteAllText(ProjectStorePath, AotJson.Serialize(_projects,
                 new JsonSerializerOptions { WriteIndented = true }));
         }
         catch
@@ -3131,20 +3130,7 @@ public partial class MainWindow : Window
     private void OpenProjectFolder(string projectId)
     {
         EnsureProjectDirectory(projectId);
-        try
-        {
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = "explorer.exe",
-                UseShellExecute = true
-            };
-            startInfo.ArgumentList.Add(ProjectDirectory(projectId));
-            Process.Start(startInfo);
-        }
-        catch
-        {
-            // Explorer may be unavailable on non-Windows platforms; project actions remain usable.
-        }
+        PlatformHelper.OpenFolder(ProjectDirectory(projectId));
     }
 
     private async Task RenameProjectAsync(string projectId)
@@ -3180,7 +3166,13 @@ public partial class MainWindow : Window
         var deletingActiveProject = string.Equals(_activeProjectId, projectId, StringComparison.OrdinalIgnoreCase);
         _projects.RemoveAll(item => string.Equals(item.Id, projectId, StringComparison.OrdinalIgnoreCase));
         TryDeleteProjectDirectory(projectId);
-        if (deletingActiveProject) _activeProjectId = null;
+        if (deletingActiveProject)
+        {
+            _activeProjectId = null;
+            _projectSession.ActiveProjectId = null;
+            _projectSession.ActiveProject = null;
+            _projectSession.ClearHistory();
+        }
         SaveProjects();
         RebuildProjectSidebar();
         if (deletingActiveProject) await NavigateTo("overview");
@@ -3657,20 +3649,19 @@ public partial class MainWindow : Window
             ["chunkSeconds"] = project.TranscriptionChunkSeconds
         };
 
-        var request = new
-        {
-            id = Guid.NewGuid().ToString("N"),
-            command = "transcribe",
-            engine,
-            audio = project.SourceVideoPath,
-            language,
-            device = project.TranscriptionDevice,
-            config = requestConfig
+        var request = new Dictionary<string, object?> {
+            ["id"] = Guid.NewGuid().ToString("N"),
+            ["command"] = "transcribe",
+            ["engine"] = engine,
+            ["audio"] = project.SourceVideoPath,
+            ["language"] = language,
+            ["device"] = project.TranscriptionDevice,
+            ["config"] = requestConfig
         };
         var workerProgress = new Progress<AsrWorkerProgress>(update =>
             progress.Report((update.Percent, update.Message, update.LogLine)));
         var responseLine = await _asrWorker.TranscribeAsync(
-            runtimeId, workerPath, JsonSerializer.Serialize(request), workerProgress, token);
+            runtimeId, workerPath, AotJson.Serialize(request), workerProgress, token);
 
         using var document = JsonDocument.Parse(responseLine);
         var root = document.RootElement;
@@ -3824,7 +3815,7 @@ public partial class MainWindow : Window
             }
             else if (File.Exists(cachePath))
             {
-                var cached = JsonSerializer.Deserialize<List<SubtitleSegment>>(File.ReadAllText(cachePath));
+                var cached = AotJson.Deserialize<List<SubtitleSegment>>(File.ReadAllText(cachePath));
                 if (cached is not null) _projectTranslationSegments.AddRange(cached);
             }
             else if (File.Exists(translatedSrt))
@@ -4051,7 +4042,15 @@ public partial class MainWindow : Window
             FontWeight = FontWeight.Normal,
             Foreground = Brush.Parse("#18181B")
         };
-        cell.Bind(TextBox.TextProperty, new Binding(propertyName) { Mode = BindingMode.TwoWay });
+        var binding = propertyName switch
+        {
+            nameof(SubtitleSegment.Original) => CompiledBinding.Create<SubtitleSegment, string>(
+                item => item.Original, mode: BindingMode.TwoWay),
+            nameof(SubtitleSegment.Translated) => CompiledBinding.Create<SubtitleSegment, string>(
+                item => item.Translated, mode: BindingMode.TwoWay),
+            _ => throw new ArgumentOutOfRangeException(nameof(propertyName))
+        };
+        cell.Bind(TextBox.TextProperty, binding);
         cell.TextChanged += (_, _) => ScheduleActiveProjectTranslationCacheSave();
         return cell;
     }
@@ -4077,7 +4076,7 @@ public partial class MainWindow : Window
             if (string.Equals(projectId, _activeProjectId, StringComparison.OrdinalIgnoreCase))
                 _workspacePreparedProjectId = null;
             EnsureProjectDirectory(projectId);
-            File.WriteAllText(ProjectTranslationCachePath(projectId), JsonSerializer.Serialize(
+            File.WriteAllText(ProjectTranslationCachePath(projectId), AotJson.Serialize(
                 _projectTranslationSegments, new JsonSerializerOptions { WriteIndented = true }));
         }
         catch
@@ -4189,7 +4188,7 @@ public partial class MainWindow : Window
             MinHeight = 112,
             MaxHeight = 180,
             Padding = new Thickness(13, 10),
-            PlaceholderText = "例如：Minecraft 专有名词保留英文；译文简短口语化；不要使用句号。",
+            PlaceholderText = "例如：行业专有名词保留英文；译文简短口语化；不要使用句号。",
             Background = Brush.Parse("#F7F8FA"),
             BorderBrush = Brush.Parse("#E1E4E8"),
             BorderThickness = new Thickness(1),
@@ -4507,7 +4506,7 @@ public partial class MainWindow : Window
         string terminologyGlossary,
         CancellationToken token)
     {
-        var input = batch.Select(item => new { id = item.Index, text = item.Original }).ToArray();
+        var input = batch.Select(item => new Dictionary<string, object?> { ["id"] = item.Index, ["text"] = item.Original }).ToArray();
         string instruction;
         if (project.ReflectTranslation)
         {
@@ -4538,13 +4537,13 @@ public partial class MainWindow : Window
             instruction += "\n当前项目的自定义要求：" + project.TranslationPrompt.Trim();
         }
 
-        var userInput = "待翻译字幕：\n" + JsonSerializer.Serialize(input);
+        var userInput = "待翻译字幕：\n" + AotJson.Serialize(input);
         var endpoint = TranslationEndpoint(profile.BaseUrl, profile.Protocol, profile.Model, profile.ApiKey);
         using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
         ApplyProviderAuthentication(request, profile);
         var payload = BuildProviderTextPayload(profile,
             instruction + "\n" + profile.SystemPrompt, userInput, 0.2, 4096);
-        request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+        request.Content = new StringContent(AotJson.Serialize(payload), Encoding.UTF8, "application/json");
         using var requestTimeout = CancellationTokenSource.CreateLinkedTokenSource(token);
         requestTimeout.CancelAfter(TimeSpan.FromSeconds(45));
         HttpResponseMessage response;
@@ -4597,7 +4596,7 @@ public partial class MainWindow : Window
             : root;
         if (items.ValueKind != JsonValueKind.Array)
             throw new InvalidDataException("翻译 JSON 中缺少 items 数组");
-        return JsonSerializer.Deserialize<List<TranslationBatchItem>>(items.GetRawText(),
+        return AotJson.Deserialize<List<TranslationBatchItem>>(items.GetRawText(),
                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
                ?? throw new InvalidDataException("翻译结果为空");
     }
@@ -4675,19 +4674,18 @@ public partial class MainWindow : Window
                 ["max_tokens"] = maxTokens,
                 ["temperature"] = temperature,
                 ["system"] = instruction,
-                ["messages"] = new[] { new { role = "user", content = userInput } }
+                ["messages"] = new[] { new Dictionary<string, object?> { ["role"] = "user", ["content"] = userInput } }
             };
 
         if (profile.Protocol.Equals("google", StringComparison.OrdinalIgnoreCase))
             return new Dictionary<string, object?>
             {
-                ["systemInstruction"] = new { parts = new[] { new { text = instruction } } },
-                ["contents"] = new[] { new { role = "user", parts = new[] { new { text = userInput } } } },
-                ["generationConfig"] = new
-                {
-                    temperature,
-                    maxOutputTokens = maxTokens,
-                    responseMimeType = "application/json"
+                ["systemInstruction"] = new Dictionary<string, object?> { ["parts"] = new[] { new Dictionary<string, object?> { ["text"] = instruction } } },
+                ["contents"] = new[] { new Dictionary<string, object?> { ["role"] = "user", ["parts"] = new[] { new Dictionary<string, object?> { ["text"] = userInput } } } },
+                ["generationConfig"] = new Dictionary<string, object?> {
+                    ["temperature"] = temperature,
+                    ["maxOutputTokens"] = maxTokens,
+                    ["responseMimeType"] = "application/json"
                 }
             };
 
@@ -4697,12 +4695,12 @@ public partial class MainWindow : Window
                 ["model"] = profile.Model,
                 ["messages"] = new[]
                 {
-                    new { role = "system", content = instruction },
-                    new { role = "user", content = userInput }
+                    new Dictionary<string, object?> { ["role"] = "system", ["content"] = instruction },
+                    new Dictionary<string, object?> { ["role"] = "user", ["content"] = userInput }
                 },
                 ["stream"] = false,
                 ["format"] = "json",
-                ["options"] = new { temperature, num_predict = maxTokens }
+                ["options"] = new Dictionary<string, object?> { ["temperature"] = temperature, ["num_predict"] = maxTokens }
             };
 
         if (profile.Protocol.Equals("openai-responses", StringComparison.OrdinalIgnoreCase))
@@ -4714,7 +4712,7 @@ public partial class MainWindow : Window
                 ["input"] = userInput,
                 ["max_output_tokens"] = maxTokens
             };
-            if (profile.ReasoningSummary) responses["reasoning"] = new { summary = "auto" };
+            if (profile.ReasoningSummary) responses["reasoning"] = new Dictionary<string, object?> { ["summary"] = "auto" };
             return responses;
         }
 
@@ -4723,8 +4721,8 @@ public partial class MainWindow : Window
             ["model"] = profile.Model,
             ["messages"] = new[]
             {
-                new { role = profile.DeveloperRole ? "developer" : "system", content = instruction },
-                new { role = "user", content = userInput }
+                new Dictionary<string, object?> { ["role"] = profile.DeveloperRole ? "developer" : "system", ["content"] = instruction },
+                new Dictionary<string, object?> { ["role"] = "user", ["content"] = userInput }
             },
             ["temperature"] = temperature,
             ["max_tokens"] = maxTokens,
@@ -4732,8 +4730,8 @@ public partial class MainWindow : Window
         };
         if (profile.BaseUrl.Contains("deepseek.com", StringComparison.OrdinalIgnoreCase))
         {
-            chat["thinking"] = new { type = "disabled" };
-            chat["response_format"] = new { type = "json_object" };
+            chat["thinking"] = new Dictionary<string, object?> { ["type"] = "disabled" };
+            chat["response_format"] = new Dictionary<string, object?> { ["type"] = "json_object" };
         }
         return chat;
     }
@@ -5000,7 +4998,7 @@ public partial class MainWindow : Window
             DownloadTaskButtonHost.IsVisible = true;
             _ = _motion.ShowDownloadTaskButtonAsync(DownloadTaskButton);
         }
-        _motion.RibbleDownloadTask(DownloadTaskRipple);
+        _ = _motion.RippleDownloadTaskAsync(DownloadTaskRipple);
         RefreshDownloadTaskUi();
         return id;
     }
@@ -7138,29 +7136,28 @@ public partial class MainWindow : Window
     {
         var directory = Path.Combine(_deployment.RuntimeRoot, "config");
         Directory.CreateDirectory(directory);
-        var settings = new
-        {
-            model = snapshot.ModelId,
-            device = snapshot.Device,
-            language = snapshot.Language,
-            precision = snapshot.Precision,
-            beamSize = snapshot.BeamSize,
-            vad = snapshot.Vad,
-            vadThreshold = snapshot.VadThreshold,
-            vadMinSilence = snapshot.VadMinSilence,
-            vadSpeechPad = snapshot.VadSpeechPad,
-            maxTokens = snapshot.MaxTokens,
-            timestamps = snapshot.Timestamps,
-            hotwords = snapshot.Hotwords,
-            emotionDetection = snapshot.EmotionDetection,
-            audioEventDetection = snapshot.AudioEventDetection,
-            speakerCount = snapshot.SpeakerCount,
-            diarization = snapshot.Diarization,
-            temperature = snapshot.Temperature,
-            chunkSeconds = snapshot.ChunkSeconds,
-            advanced = snapshot.Advanced
+        var settings = new Dictionary<string, object?> {
+            ["model"] = snapshot.ModelId,
+            ["device"] = snapshot.Device,
+            ["language"] = snapshot.Language,
+            ["precision"] = snapshot.Precision,
+            ["beamSize"] = snapshot.BeamSize,
+            ["vad"] = snapshot.Vad,
+            ["vadThreshold"] = snapshot.VadThreshold,
+            ["vadMinSilence"] = snapshot.VadMinSilence,
+            ["vadSpeechPad"] = snapshot.VadSpeechPad,
+            ["maxTokens"] = snapshot.MaxTokens,
+            ["timestamps"] = snapshot.Timestamps,
+            ["hotwords"] = snapshot.Hotwords,
+            ["emotionDetection"] = snapshot.EmotionDetection,
+            ["audioEventDetection"] = snapshot.AudioEventDetection,
+            ["speakerCount"] = snapshot.SpeakerCount,
+            ["diarization"] = snapshot.Diarization,
+            ["temperature"] = snapshot.Temperature,
+            ["chunkSeconds"] = snapshot.ChunkSeconds,
+            ["advanced"] = snapshot.Advanced
         };
-        var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
+        var json = AotJson.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
         File.WriteAllText(Path.Combine(directory, $"{snapshot.ModelId}.json"), json);
         if (makeActive) File.WriteAllText(Path.Combine(directory, "asr-settings.json"), json);
     }

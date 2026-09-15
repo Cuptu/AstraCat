@@ -2,7 +2,7 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
-    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <RuntimeIdentifiers>win-x64;linux-x64;osx-arm64;osx-x64</RuntimeIdentifiers>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
@@ -10,8 +10,8 @@
     <RepositoryUrl>https://github.com/Cuptu/AstraCat</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
-    <ApplicationIcon>Assets\Brand\AstraCat.ico</ApplicationIcon>
+    <ApplicationManifest Condition="$([MSBuild]::IsOSPlatform('Windows'))">app.manifest</ApplicationManifest>
+    <ApplicationIcon Condition="$([MSBuild]::IsOSPlatform('Windows'))">Assets\Brand\AstraCat.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -28,8 +28,33 @@
                       Exclude="Assets\Badges\**;Assets\Brand\AstraCat.svg;Assets\Brand\AstraCatLogo.svg;Assets\Brand\AstraCatLogo.png;Assets\Brand\AstraCatLogo-source.png;Assets\Models\qwen.jpg;Assets\Models\systran.png;Assets\Models\whisper.png" />
     <None Include="runtime\tools\**" Exclude="runtime\tools\mpv\**" CopyToOutputDirectory="PreserveNewest" />
     <None Include="runtime\tools\mpv\libmpv-2.dll"
-          Condition="Exists('runtime\tools\mpv\libmpv-2.dll')"
+          Condition="$([MSBuild]::IsOSPlatform('Windows')) and Exists('runtime\tools\mpv\libmpv-2.dll')"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="runtime\tools\mpv\libmpv.so.2"
+          Condition="$([MSBuild]::IsOSPlatform('Linux')) and Exists('runtime\tools\mpv\libmpv.so.2')"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="runtime\tools\mpv\libmpv.2.dylib"
+          Condition="$([MSBuild]::IsOSPlatform('OSX')) and Exists('runtime\tools\mpv\libmpv.2.dylib')"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="runtime\tools\mpv\libEGL.dll"
+          Condition="$([MSBuild]::IsOSPlatform('Windows')) and Exists('runtime\tools\mpv\libEGL.dll')"
+          Link="libEGL.dll"
           CopyToOutputDirectory="PreserveNewest" />
     <None Include="runtime\tools\mpv\LIBMPV_SOURCE.md" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="AstraCat.Tests" />
+  </ItemGroup>
+
+  <!-- 独立基准项目与单元测试项目不能被桌面主项目递归编译。 -->
+  <ItemGroup>
+    <Compile Remove="tests\**;benchmarks\ui-load-comparison\**;artifacts\**;benchmarks\**\obj\**;benchmarks\**\bin\**" />
+  </ItemGroup>
+  <PropertyGroup Condition="'$(PublishAot)' == 'true'">
+    <DefineConstants>$(DefineConstants);NATIVE_AOT</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(PublishAot)' == 'true'">
+    <Compile Remove="benchmarks\**" />
   </ItemGroup>
 </Project>

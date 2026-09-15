@@ -43,6 +43,15 @@ internal sealed class AsrWorkerClient(DeploymentManager deployment) : IDisposabl
 
             try
             {
+                string? expectedId = null;
+                try
+                {
+                    using var reqDoc = JsonDocument.Parse(requestJson);
+                    if (reqDoc.RootElement.TryGetProperty("id", out var idElem))
+                        expectedId = idElem.GetString();
+                }
+                catch { }
+
                 await process.StandardInput.WriteLineAsync(requestJson.AsMemory(), token);
                 await process.StandardInput.FlushAsync(token);
                 while (await process.StandardOutput.ReadLineAsync(token) is { } outputLine)
@@ -59,6 +68,13 @@ internal sealed class AsrWorkerClient(DeploymentManager deployment) : IDisposabl
                                 root.TryGetProperty("message", out var message) ? message.GetString() ?? string.Empty : string.Empty,
                                 root.TryGetProperty("log", out var log) ? log.GetString() : null));
                             continue;
+                        }
+
+                        if (root.TryGetProperty("id", out var idElement))
+                        {
+                            var respId = idElement.GetString();
+                            if (expectedId is not null && !string.Equals(respId, expectedId, StringComparison.Ordinal))
+                                continue;
                         }
 
                         if (root.TryGetProperty("ok", out _))
@@ -132,6 +148,15 @@ internal sealed class AsrWorkerClient(DeploymentManager deployment) : IDisposabl
             startInfo.ArgumentList.Add(workerPath);
             startInfo.Environment["ASTRACAT_MODEL_HOME"] = deployment.ModelRoot;
             startInfo.Environment["PYTHONUNBUFFERED"] = "1";
+            var ffmpegPath = MediaToolLocator.FindFfmpeg();
+            if (!string.IsNullOrWhiteSpace(ffmpegPath) && File.Exists(ffmpegPath))
+                startInfo.Environment["ASTRACAT_FFMPEG"] = Path.GetFullPath(ffmpegPath);
+            var nativeDll = AstraCoreRuntime.Current?.Resolve("native");
+            if (!string.IsNullOrWhiteSpace(nativeDll) && File.Exists(nativeDll))
+            {
+                startInfo.Environment["ASTRACAT_ASTRACORE_NATIVE"] = Path.GetFullPath(nativeDll);
+                startInfo.Environment["ASTRACAT_ASTRATCORE_NATIVE"] = Path.GetFullPath(nativeDll);
+            }
             deployment.ConfigureCudaEnvironment(startInfo);
 
             var process = new Process { StartInfo = startInfo };
@@ -152,7 +177,7 @@ internal sealed class AsrWorkerClient(DeploymentManager deployment) : IDisposabl
     {
         try
         {
-            while (await process.StandardError.ReadLineAsync() is { } line)
+            while (await process.StandardError.ReadLineAsync().ConfigureAwait(false) is { } line)
             {
                 lock (_errorSync)
                 {
@@ -176,11 +201,27 @@ internal sealed class AsrWorkerClient(DeploymentManager deployment) : IDisposabl
         {
             try
             {
-                await Task.Delay(IdleTimeout, cancellation.Token);
-                await _requestGate.WaitAsync(cancellation.Token);
+                await Task.Delay(IdleTimeout, cancellation.Token).ConfigureAwait(false);
+                await _requestGate.WaitAsync(cancellation.Token).ConfigureAwait(false);
                 try
                 {
-                    lock (_processSync) StopWorkerLocked();
+                    Process? processToStop = null;
+                    Task? pumpToWait = null;
+                    lock (_processSync)
+                    {
+                        if (_process is not null)
+                        {
+                            processToStop = _process;
+                            pumpToWait = _stderrPump;
+                            _process = null;
+                            _runtimeId = null;
+                            _stderrPump = null;
+                        }
+                    }
+                    if (processToStop is not null)
+                    {
+                        await StopWorkerGracefullyAsync(processToStop, pumpToWait).ConfigureAwait(false);
+                    }
                 }
                 finally
                 {
@@ -208,9 +249,45 @@ internal sealed class AsrWorkerClient(DeploymentManager deployment) : IDisposabl
         }
     }
 
+    private static async Task StopWorkerGracefullyAsync(Process process, Task? stderrPump)
+    {
+        try
+        {
+            if (!process.HasExited)
+            {
+                var shutdownLine = $"{{\"command\":\"shutdown\",\"id\":\"{Guid.NewGuid():N}\"}}\n";
+                await process.StandardInput.WriteAsync(shutdownLine).ConfigureAwait(false);
+                await process.StandardInput.FlushAsync().ConfigureAwait(false);
+
+                using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                await process.WaitForExitAsync(timeoutCts.Token).ConfigureAwait(false);
+            }
+        }
+        catch
+        {
+            // Timeout or error, fall back to killing
+        }
+        finally
+        {
+            try
+            {
+                if (!process.HasExited) process.Kill(entireProcessTree: true);
+            }
+            catch { }
+
+            if (stderrPump is not null)
+            {
+                try { await stderrPump.ConfigureAwait(false); } catch { }
+            }
+
+            process.Dispose();
+        }
+    }
+
     private void StopWorkerLocked()
     {
         var process = _process;
+        var stderrPump = _stderrPump;
         _process = null;
         _runtimeId = null;
         _stderrPump = null;
@@ -220,6 +297,12 @@ internal sealed class AsrWorkerClient(DeploymentManager deployment) : IDisposabl
             if (!process.HasExited) process.Kill(entireProcessTree: true);
         }
         catch { }
+
+        if (stderrPump is not null)
+        {
+            try { stderrPump.Wait(500); } catch { }
+        }
+
         process.Dispose();
     }
 
@@ -244,8 +327,6 @@ internal sealed class AsrWorkerClient(DeploymentManager deployment) : IDisposabl
         _disposed = true;
         CancelIdleShutdown();
         lock (_processSync) StopWorkerLocked();
-        // An in-flight request releases this gate from its finally block. The process
-        // lifetime is the real resource to close here; disposing the gate could race
-        // with window shutdown and turn cancellation into ObjectDisposedException.
+        _requestGate.Dispose();
     }
 }

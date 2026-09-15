@@ -89,7 +89,7 @@
                 <local:VideoSeekBarControl x:Name="PreviewSeekBar" Grid.Column="2" VerticalAlignment="Center" Height="22" />
 
                 <TextBlock x:Name="PreviewTimeText" Grid.Column="4" Text="00:00 / 00:00" FontSize="10" Foreground="#A0AEC0"
-                           FontWeight="Medium" VerticalAlignment="Center" FontFamily="Consolas, monospace" />
+                           FontWeight="Medium" VerticalAlignment="Center" FontFamily="{StaticResource AppCodeFontFamily}" />
               </Grid>
             </Border>
           </Grid>

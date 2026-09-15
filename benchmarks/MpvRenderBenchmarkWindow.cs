@@ -8,7 +8,10 @@ namespace AstraCat;
 
 internal sealed class MpvRenderBenchmarkWindow : Window
 {
-    private const int SampleSeconds = 20;
+    private static int SampleSeconds =>
+        int.TryParse(Environment.GetEnvironmentVariable("ASTRACAT_BENCHMARK_SECONDS"), out var seconds)
+            ? Math.Clamp(seconds, 5, 300)
+            : 20;
     private readonly string _mediaPath;
     private readonly string _resultPath;
     private readonly IClassicDesktopStyleApplicationLifetime _desktop;

@@ -38,7 +38,8 @@ internal enum MpvRenderParamType
     OpenGlFbo = 3,
     FlipY = 4,
     AdvancedControl = 10,
-    BlockForTargetTime = 12
+    BlockForTargetTime = 12,
+    D3D11RenderTarget = 21
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -90,6 +91,17 @@ internal struct MpvOpenGlFbo
     public int InternalFormat;
 }
 
+[StructLayout(LayoutKind.Sequential)]
+internal struct MpvD3D11RenderTarget
+{
+    public int Width;
+    public int Height;
+    public IntPtr SharedHandle;
+    public ulong Generation;
+    public ulong ConsumerAcquireKey;
+    public ulong ConsumerReleaseKey;
+}
+
 [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
 internal delegate IntPtr MpvOpenGlGetProcAddress(IntPtr context, IntPtr name);
 
@@ -112,6 +124,7 @@ internal sealed class MpvNative
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int SetOptionStringDelegate(IntPtr handle, [MarshalAs(UnmanagedType.LPUTF8Str)] string name, [MarshalAs(UnmanagedType.LPUTF8Str)] string value);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int ObservePropertyDelegate(IntPtr handle, ulong replyUserData, [MarshalAs(UnmanagedType.LPUTF8Str)] string name, MpvFormat format);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int GetPropertyDelegate(IntPtr handle, [MarshalAs(UnmanagedType.LPUTF8Str)] string name, MpvFormat format, IntPtr data);
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate void FreeDelegate(IntPtr data);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int RequestLogMessagesDelegate(IntPtr handle, [MarshalAs(UnmanagedType.LPUTF8Str)] string level);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate IntPtr WaitEventDelegate(IntPtr handle, double timeout);
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int CommandDelegate(IntPtr handle, IntPtr arguments);
@@ -133,6 +146,7 @@ internal sealed class MpvNative
     private readonly SetOptionStringDelegate _setOptionString;
     private readonly ObservePropertyDelegate _observeProperty;
     private readonly GetPropertyDelegate _getProperty;
+    private readonly FreeDelegate _free;
     private readonly RequestLogMessagesDelegate _requestLogMessages;
     private readonly WaitEventDelegate _waitEvent;
     private readonly CommandDelegate _command;
@@ -150,12 +164,13 @@ internal sealed class MpvNative
 
     private MpvNative(string libraryPath)
     {
-        _library = NativeLibrary.Load(libraryPath);
+        _library = NativeDependencyLoader.Load(libraryPath);
         _create = Bind<CreateDelegate>("mpv_create");
         _initialize = Bind<InitializeDelegate>("mpv_initialize");
         _setOptionString = Bind<SetOptionStringDelegate>("mpv_set_option_string");
         _observeProperty = Bind<ObservePropertyDelegate>("mpv_observe_property");
         _getProperty = Bind<GetPropertyDelegate>("mpv_get_property");
+        _free = Bind<FreeDelegate>("mpv_free");
         _requestLogMessages = Bind<RequestLogMessagesDelegate>("mpv_request_log_messages");
         _waitEvent = Bind<WaitEventDelegate>("mpv_wait_event");
         _command = Bind<CommandDelegate>("mpv_command");
@@ -196,6 +211,20 @@ internal sealed class MpvNative
             var code = _getProperty(handle, name, MpvFormat.Int64, data);
             value = code < 0 ? 0 : Marshal.ReadInt64(data);
             return code >= 0;
+        }
+        finally { Marshal.FreeHGlobal(data); }
+    }
+    public string? GetPropertyString(IntPtr handle, string name)
+    {
+        var data = Marshal.AllocHGlobal(IntPtr.Size);
+        Marshal.WriteIntPtr(data, IntPtr.Zero);
+        try
+        {
+            var code = _getProperty(handle, name, MpvFormat.String, data);
+            if (code < 0) return null;
+            var value = Marshal.ReadIntPtr(data);
+            try { return value == IntPtr.Zero ? null : Marshal.PtrToStringUTF8(value); }
+            finally { if (value != IntPtr.Zero) _free(value); }
         }
         finally { Marshal.FreeHGlobal(data); }
     }

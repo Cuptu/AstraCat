@@ -7,6 +7,8 @@ TestResults/
 coverage/
 *.pdb
 *.nupkg
+build/
+build-*/
 
 # IDE and local tooling
 .vs/
@@ -16,6 +18,16 @@ coverage/
 *.suo
 *.userosscache
 *.sln.docstates
+
+# Local AI Agent & internal development status (not for public repo)
+AGENTS.md
+DEVELOPMENT_STATUS.md
+.gemini/
+.cursor/
+*.agent.md
+docs/ASTRACORE_COMPARISON.md
+docs/ASTRACORE_VERIFICATION.md
+docs/MPV_D3D11VA_ANGLE_INTEROP.md
 
 # Python caches and virtual environments
 __pycache__/
@@ -32,6 +44,8 @@ runtime/tools/mpv/*
 !runtime/tools/mpv/LIBMPV_SOURCE.md
 runtimes/
 .verify-all-providers/
+/FFmpeg-n9.0.1/
+/mpv-0.41.0/
 
 # Local configuration and secrets
 .env
@@ -55,6 +69,11 @@ secrets.json
 *.orig
 *.rej
 *~
+
+# Local scratch prototyping and benchmark packages
+scratch/
+benchmarks/**/packages-*/
+benchmarks/ui-load-comparison/packages-*/
 
 # Operating-system metadata
 Thumbs.db

@@ -1,0 +1,260 @@
+name: Multiplatform Build & Native AOT
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - "native/astracore/**"
+      - "Services/**"
+      - "Views/**"
+      - "Controls/**"
+      - "AstraCat.csproj"
+      - "Program.cs"
+      - "App.axaml*"
+      - ".github/workflows/multiplatform-build.yml"
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  build-linux-x64:
+    name: Linux x64 (Native AOT)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install native build dependencies & FFmpeg/mpv libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            pkg-config \
+            libavformat-dev \
+            libavcodec-dev \
+            libavutil-dev \
+            libswresample-dev \
+            libmpv-dev \
+            ffmpeg \
+            libegl1-mesa-dev \
+            libgl1-mesa-dev
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build AstraCore Native C ABI (Linux)
+        run: |
+          cmake -B build-native -S native/astracore -DCMAKE_BUILD_TYPE=Release -G Ninja
+          cmake --build build-native
+          ctest --test-dir build-native --output-on-failure
+
+      - name: Publish AstraCat with Native AOT
+        run: |
+          dotnet publish AstraCat.csproj -c Release -r linux-x64 \
+            -p:PublishProfile=NativeAot -p:PublishAot=true \
+            -p:DebugType=None -p:DebugSymbols=false \
+            -o dist/AstraCat-linux-x64
+
+      - name: Assemble Linux distribution layout
+        run: |
+          mkdir -p dist/AstraCat-linux-x64/runtime/tools/astracore/linux-x64
+          cp build-native/libAstraCore.Native.so dist/AstraCat-linux-x64/runtime/tools/astracore/linux-x64/
+          mkdir -p dist/AstraCat-linux-x64/engines
+          cp engines/asr_worker.py dist/AstraCat-linux-x64/engines/
+          cp LICENSE dist/AstraCat-linux-x64/
+          cp README.md dist/AstraCat-linux-x64/
+          cp THIRD_PARTY_NOTICES.md dist/AstraCat-linux-x64/
+
+      - name: Package Linux AppImage & DEB (Native one-click installers)
+        run: |
+          # 1. Package AppImage (standalone executable)
+          APPDIR="dist/AstraCat.AppDir"
+          mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/lib" "$APPDIR/usr/share/icons/hicolor/256x256/apps"
+          cp -r dist/AstraCat-linux-x64/* "$APPDIR/usr/bin/"
+          cp Assets/Brand/AstraCatLogo.png "$APPDIR/usr/share/icons/hicolor/256x256/apps/astracat.png"
+          cp Assets/Brand/AstraCatLogo.png "$APPDIR/astracat.png"
+
+          cat << 'EOF' > "$APPDIR/astracat.desktop"
+          [Desktop Entry]
+          Type=Application
+          Name=AstraCat
+          Comment=High-performance AI Subtitle Editor
+          Exec=AstraCat
+          Icon=astracat
+          Categories=AudioVideo;AudioVideoEditing;
+          Terminal=false
+          EOF
+
+          cat << 'EOF' > "$APPDIR/AppRun"
+          #!/bin/sh
+          HERE="$(dirname "$(readlink -f "${0}")")"
+          export PATH="${HERE}/usr/bin:${PATH}"
+          export LD_LIBRARY_PATH="${HERE}/usr/lib:${HERE}/usr/bin:${LD_LIBRARY_PATH}"
+          exec "${HERE}/usr/bin/AstraCat" "$@"
+          EOF
+          chmod +x "$APPDIR/AppRun"
+
+          curl -sL https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage -o appimagetool
+          chmod +x appimagetool
+          ./appimagetool --appimage-extract-and-run "$APPDIR" "dist/AstraCat-linux-x64.AppImage" || true
+
+          # 2. Package Debian .deb (system package installer)
+          DEB_DIR="dist/deb_root"
+          mkdir -p "$DEB_DIR/opt/astracat" "$DEB_DIR/usr/share/applications" "$DEB_DIR/usr/share/icons/hicolor/256x256/apps" "$DEB_DIR/usr/bin" "$DEB_DIR/DEBIAN"
+          cp -r dist/AstraCat-linux-x64/* "$DEB_DIR/opt/astracat/"
+          cp Assets/Brand/AstraCatLogo.png "$DEB_DIR/usr/share/icons/hicolor/256x256/apps/astracat.png"
+          ln -s /opt/astracat/AstraCat "$DEB_DIR/usr/bin/astracat"
+
+          cat << 'EOF' > "$DEB_DIR/usr/share/applications/astracat.desktop"
+          [Desktop Entry]
+          Type=Application
+          Name=AstraCat
+          Comment=High-performance AI Subtitle Editor
+          Exec=/opt/astracat/AstraCat
+          Icon=astracat
+          Categories=AudioVideo;AudioVideoEditing;
+          Terminal=false
+          EOF
+
+          cat << 'EOF' > "$DEB_DIR/DEBIAN/control"
+          Package: astracat
+          Version: 0.1.2
+          Section: video
+          Priority: optional
+          Architecture: amd64
+          Maintainer: AstraCat Team <cuptu@github.com>
+          Description: High-performance AI Subtitle Editor powered by Avalonia and Native AOT
+          EOF
+
+          dpkg-deb --build "$DEB_DIR" dist/AstraCat-linux-x64.deb
+
+      - name: Upload Linux x64 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: AstraCat-linux-x64
+          path: |
+            dist/*.AppImage
+            dist/*.deb
+          if-no-files-found: warn
+
+  build-macos-arm64:
+    name: macOS Apple Silicon (Native AOT)
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies via Homebrew
+        run: |
+          brew install ffmpeg mpv pkg-config cmake ninja
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build AstraCore Native C ABI (macOS)
+        run: |
+          cmake -B build-native -S native/astracore -DCMAKE_BUILD_TYPE=Release -G Ninja
+          cmake --build build-native
+          ctest --test-dir build-native --output-on-failure
+
+      - name: Publish AstraCat with Native AOT
+        run: |
+          dotnet publish AstraCat.csproj -c Release -r osx-arm64 \
+            -p:PublishProfile=NativeAot -p:PublishAot=true \
+            -p:DebugType=None -p:DebugSymbols=false \
+            -o dist/AstraCat-osx-arm64
+
+      - name: Package macOS App Bundle and DMG
+        run: |
+          mkdir -p dist/AstraCat-osx-arm64/runtime/tools/astracore/osx-arm64
+          cp build-native/libAstraCore.Native.dylib dist/AstraCat-osx-arm64/runtime/tools/astracore/osx-arm64/
+          mkdir -p dist/AstraCat-osx-arm64/engines
+          cp engines/asr_worker.py dist/AstraCat-osx-arm64/engines/
+          cp LICENSE dist/AstraCat-osx-arm64/
+          cp README.md dist/AstraCat-osx-arm64/
+          cp THIRD_PARTY_NOTICES.md dist/AstraCat-osx-arm64/
+
+          # Assemble .app structure
+          APP_DIR="dist/AstraCat.app"
+          CONTENTS_DIR="$APP_DIR/Contents"
+          MACOS_DIR="$CONTENTS_DIR/MacOS"
+          RESOURCES_DIR="$CONTENTS_DIR/Resources"
+          FRAMEWORKS_DIR="$CONTENTS_DIR/Frameworks"
+
+          mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$FRAMEWORKS_DIR"
+          cp -r dist/AstraCat-osx-arm64/* "$MACOS_DIR/"
+          chmod +x "$MACOS_DIR/AstraCat"
+
+          cp build-native/libAstraCore.Native.dylib "$FRAMEWORKS_DIR/" || true
+
+          cat << 'EOF' > "$CONTENTS_DIR/Info.plist"
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleExecutable</key>
+              <string>AstraCat</string>
+              <key>CFBundleIconFile</key>
+              <string>AstraCat</string>
+              <key>CFBundleIdentifier</key>
+              <string>com.cuptu.astracat</string>
+              <key>CFBundleName</key>
+              <string>AstraCat</string>
+              <key>CFBundlePackageType</key>
+              <string>APPL</string>
+              <key>CFBundleShortVersionString</key>
+              <string>0.1.2</string>
+              <key>LSMinimumSystemVersion</key>
+              <string>12.0</string>
+              <key>NSHighResolutionCapable</key>
+              <true/>
+          </dict>
+          </plist>
+          EOF
+
+          mkdir -p dmg_root
+          cp -R "$APP_DIR" dmg_root/
+          ln -s /Applications dmg_root/Applications
+          hdiutil create -volname "AstraCat" -srcfolder dmg_root -ov -format UDZO "dist/AstraCat-osx-arm64.dmg"
+
+      - name: Upload macOS arm64 DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AstraCat-osx-arm64
+          path: dist/*.dmg
+          if-no-files-found: error
+
+  build-windows-x64:
+    name: Windows x64 (Native AOT + Inno Setup)
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Package Windows Release (Native AOT)
+        shell: pwsh
+        run: |
+          ./package-release.ps1 -NativeAot -Version 0.1.2-DEV
+
+      - name: Upload Windows x64 Setup & ZIP artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: AstraCat-win-x64
+          path: |
+            dist/*.zip
+            dist/*Setup.exe
+          if-no-files-found: error

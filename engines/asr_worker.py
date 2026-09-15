@@ -66,11 +66,28 @@ def _cleanup_temp_audio() -> None:
 import atexit
 atexit.register(_cleanup_temp_audio)
 
+import signal
+def _handle_exit_signal(signum, frame):
+    _cleanup_temp_audio()
+    sys.exit(0)
+
+try:
+    signal.signal(signal.SIGTERM, _handle_exit_signal)
+    signal.signal(signal.SIGINT, _handle_exit_signal)
+except (ValueError, AttributeError):
+    pass
+
 
 def _find_ffmpeg() -> str | None:
-    """Locate ffmpeg: check runtime/tools/ffmpeg first, then PATH."""
+    """Locate the host-selected runtime FFmpeg before compatibility fallbacks."""
+    configured = os.environ.get("ASTRACAT_FFMPEG")
+    if configured and Path(configured).is_file():
+        return configured
+
+    executable = "ffmpeg.exe" if sys.platform == "win32" else "ffmpeg"
     candidates = [
-        APP_ROOT / "runtime" / "tools" / "ffmpeg" / ("ffmpeg.exe" if sys.platform == "win32" else "ffmpeg"),
+        *sorted((APP_ROOT / "runtime" / "tools" / "astracore").glob(f"*/{executable}")),
+        APP_ROOT / "runtime" / "tools" / "ffmpeg" / executable,
     ]
     for candidate in candidates:
         if candidate.is_file():
@@ -78,16 +95,75 @@ def _find_ffmpeg() -> str | None:
     return shutil.which("ffmpeg")
 
 
+_cached_astracore_native: ctypes.CDLL | None = None
+_checked_astracore_native: bool = False
+
+
+def _get_astracore_native() -> ctypes.CDLL | None:
+    global _cached_astracore_native, _checked_astracore_native
+    if _checked_astracore_native:
+        return _cached_astracore_native
+    _checked_astracore_native = True
+    native_env = os.environ.get("ASTRACAT_ASTRACORE_NATIVE") or os.environ.get("ASTRACAT_ASTRATCORE_NATIVE")
+    candidates: list[Path] = []
+    if native_env and Path(native_env).is_file():
+        candidates.append(Path(native_env))
+    if sys.platform == "win32":
+        dll_name = "AstraCore.Native.dll"
+    elif sys.platform == "darwin":
+        dll_name = "libAstraCore.Native.dylib"
+    else:
+        dll_name = "libAstraCore.Native.so"
+    candidates.extend(sorted((APP_ROOT / "runtime" / "tools" / "astracore").glob(f"*/{dll_name}")))
+    candidates.extend(sorted((APP_ROOT / "artifacts" / "astracore").glob(f"*/{dll_name}")))
+    for candidate in candidates:
+        try:
+            lib = ctypes.CDLL(str(candidate))
+            if hasattr(lib, "ac_extract_audio_wav_utf8"):
+                lib.ac_extract_audio_wav_utf8.argtypes = [
+                    ctypes.c_char_p, ctypes.c_char_p, ctypes.c_int, ctypes.c_int,
+                    ctypes.c_char_p, ctypes.c_size_t,
+                ]
+                lib.ac_extract_audio_wav_utf8.restype = ctypes.c_int
+                _cached_astracore_native = lib
+                return lib
+        except Exception:
+            pass
+    return None
+
+
 def ensure_audio_file(source: str) -> str:
     """Return a path that soundfile / librosa can read.
 
     If *source* is already a pure audio file (wav, flac, mp3, …) it is
     returned unchanged.  For video containers (mp4, mkv, avi, …)
-    ``ffmpeg`` is used to extract a 16 kHz mono WAV to a temp file.
+    AstraCore C ABI (or FFmpeg fallback) is used to extract a 16 kHz mono WAV to a temp file.
     """
     ext = Path(source).suffix.lower()
     if ext in _AUDIO_EXTENSIONS:
         return source
+
+    native = _get_astracore_native()
+    if native is not None:
+        fd, wav_path = tempfile.mkstemp(suffix=".wav", prefix="astracat_asr_")
+        os.close(fd)
+        _temp_audio_files.append(wav_path)
+        err_buf = ctypes.create_string_buffer(1024)
+        rc = native.ac_extract_audio_wav_utf8(
+            source.encode("utf-8"),
+            wav_path.encode("utf-8"),
+            16000,
+            1,
+            err_buf,
+            len(err_buf),
+        )
+        if rc == 0 and os.path.exists(wav_path) and os.path.getsize(wav_path) > 44:
+            return wav_path
+        try:
+            os.unlink(wav_path)
+            _temp_audio_files.remove(wav_path)
+        except OSError:
+            pass
 
     ffmpeg = _find_ffmpeg()
     if ffmpeg is None:
@@ -95,7 +171,7 @@ def ensure_audio_file(source: str) -> str:
         # downstream library fail with its own error message.
         print(
             f"[asr_worker] WARNING: 无法找到 FFmpeg，无法从视频文件提取音频。"
-            f"请将 ffmpeg 放入 runtime/tools/ffmpeg 或加入 PATH。",
+            f"请修复 AstraCore 运行时或设置 ASTRACAT_FFMPEG。",
             file=sys.stderr, flush=True,
         )
         return source
@@ -804,19 +880,22 @@ def main() -> None:
         raw_line = raw_line.lstrip("\ufeff")
         if not raw_line.strip():
             continue
-        request: dict[str, Any] = {}
+        request: Any = {}
         try:
             request = json.loads(raw_line)
+            if not isinstance(request, dict):
+                raise ValueError(f"Expected JSON object, got {type(request).__name__}")
             response = {"ok": True, "id": request.get("id"), "result": handle(request)}
         except Exception as exc:  # Keep worker alive and report structured failures.
             traceback.print_exc(file=sys.stderr)
+            req_id = request.get("id") if isinstance(request, dict) else None
             response = {
                 "ok": False,
-                "id": request.get("id"),
+                "id": req_id,
                 "error": {"type": type(exc).__name__, "message": str(exc)},
             }
         emit(response)
-        if request.get("command") == "shutdown":
+        if isinstance(request, dict) and request.get("command") == "shutdown":
             return
 
 

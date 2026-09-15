@@ -1,0 +1,15 @@
+diff --git a/video/out/opengl/hwdec_d3d11egl.c b/video/out/opengl/hwdec_d3d11egl.c
+--- a/video/out/opengl/hwdec_d3d11egl.c
++++ b/video/out/opengl/hwdec_d3d11egl.c
+@@ -96,7 +96,10 @@ static int init(struct ra_hwdec *hw)
+         !(gl_check_extension(gl->extensions, "GL_OES_EGL_image_external_essl3") ||
+           gl->es == 200) ||
+-        !gl_check_extension(exts, "EGL_EXT_device_query") ||
+         !(gl->mpgl_caps & MPGL_CAP_TEX_RG))
+         return -1;
++    // Avalonia's ANGLE exports the EXT device-query entry points but does not
++    // advertise EGL_EXT_device_query. The function and result checks below
++    // remain authoritative, so do not reject this compatible display solely
++    // because the extension token is absent.
+ 
+     p->egl_display = egl_display;

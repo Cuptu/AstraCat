@@ -339,20 +339,8 @@ public partial class MediaExportWindow : Window
 
     private static void OpenExportDirectory(string outputPath)
     {
-        try
-        {
-            var directory = Path.GetDirectoryName(Path.GetFullPath(outputPath));
-            if (string.IsNullOrWhiteSpace(directory) || !Directory.Exists(directory)) return;
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = directory,
-                UseShellExecute = true
-            });
-        }
-        catch
-        {
-            // Export completion must not fail merely because Explorer is unavailable.
-        }
+        var directory = Path.GetDirectoryName(Path.GetFullPath(outputPath));
+        if (!string.IsNullOrWhiteSpace(directory)) PlatformHelper.OpenFolder(directory);
     }
 
     private void Option_OnChanged(object? sender, TextChangedEventArgs e) => UpdateEstimate();

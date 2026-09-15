@@ -3,7 +3,7 @@
         xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
         xmlns:local="clr-namespace:AstraCat"
         x:Class="AstraCat.SubtitleStyleEditorWindow"
-        x:CompileBindings="False"
+        x:CompileBindings="True"
         Width="800" Height="680" MinWidth="720" MinHeight="600"
         WindowStartupLocation="CenterOwner" Background="#F5F6F8"
         SizeChanged="EditorWindow_OnSizeChanged"

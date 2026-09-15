@@ -71,7 +71,7 @@ public partial class MainWindow
         Path.Combine(_deployment.RuntimeRoot, "cache", "waveforms");
 
     private string LogDirectory =>
-        Path.Combine(_deployment.AppRoot, "Assets", "Brand");
+        Path.Combine(_deployment.RuntimeRoot, "logs");
 
     private void InitializeSettings()
     {
@@ -91,7 +91,7 @@ public partial class MainWindow
             if (File.Exists(AppSettingsPath))
             {
                 var json = File.ReadAllText(AppSettingsPath);
-                var loaded = JsonSerializer.Deserialize<AppSettings>(json);
+                var loaded = AotJson.Deserialize<AppSettings>(json);
                 if (loaded != null)
                 {
                     _appSettings = loaded;
@@ -116,7 +116,7 @@ public partial class MainWindow
 
             CaptureSettingsFromUi();
 
-            var json = JsonSerializer.Serialize(_appSettings, new JsonSerializerOptions { WriteIndented = true });
+            var json = AotJson.Serialize(_appSettings, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(AppSettingsPath, json);
 
             // Keep system sleep prevention in sync
@@ -425,6 +425,7 @@ public partial class MainWindow
 
     private void SettingsOpenLogRoot_OnClick(object? sender, RoutedEventArgs e)
     {
+        try { Directory.CreateDirectory(LogDirectory); } catch { }
         OpenFolderInExplorer(LogDirectory);
     }
 
@@ -464,24 +465,7 @@ public partial class MainWindow
         }
     }
 
-    private static void OpenFolderInExplorer(string path)
-    {
-        try
-        {
-            if (!Directory.Exists(path))
-                Directory.CreateDirectory(path);
-
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = path,
-                UseShellExecute = true
-            });
-        }
-        catch
-        {
-            // Ignore explorer opening errors
-        }
-    }
+    private static void OpenFolderInExplorer(string path) => PlatformHelper.OpenFolder(path);
 
     #endregion
 
@@ -515,13 +499,13 @@ public partial class MainWindow
             object? translationData = null;
             if (File.Exists(TranslationSettingsPath))
             {
-                try { translationData = JsonSerializer.Deserialize<object>(File.ReadAllText(TranslationSettingsPath)); } catch { }
+                try { translationData = AotJson.Deserialize<object>(File.ReadAllText(TranslationSettingsPath)); } catch { }
             }
 
             object? asrData = null;
             if (File.Exists(AsrSettingsPath))
             {
-                try { asrData = JsonSerializer.Deserialize<object>(File.ReadAllText(AsrSettingsPath)); } catch { }
+                try { asrData = AotJson.Deserialize<object>(File.ReadAllText(AsrSettingsPath)); } catch { }
             }
 
             var payload = new AppBackupPayload
@@ -543,7 +527,7 @@ public partial class MainWindow
 
             if (file != null)
             {
-                var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
+                var json = AotJson.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
                 await using var stream = await file.OpenWriteAsync();
                 await using var writer = new StreamWriter(stream);
                 await writer.WriteAsync(json);
@@ -577,7 +561,7 @@ public partial class MainWindow
                 using var reader = new StreamReader(stream);
                 var json = await reader.ReadToEndAsync();
 
-                var payload = JsonSerializer.Deserialize<AppBackupPayload>(json);
+                var payload = AotJson.Deserialize<AppBackupPayload>(json);
                 if (payload != null)
                 {
                     if (payload.AppSettings != null)
@@ -589,7 +573,7 @@ public partial class MainWindow
 
                     if (payload.TranslationSettings != null)
                     {
-                        var transJson = JsonSerializer.Serialize(payload.TranslationSettings, new JsonSerializerOptions { WriteIndented = true });
+                        var transJson = AotJson.Serialize(payload.TranslationSettings, new JsonSerializerOptions { WriteIndented = true });
                         Directory.CreateDirectory(Path.GetDirectoryName(TranslationSettingsPath)!);
                         File.WriteAllText(TranslationSettingsPath, transJson);
                         LoadTranslationSettings();
@@ -598,7 +582,7 @@ public partial class MainWindow
 
                     if (payload.AsrSettings != null)
                     {
-                        var asrJson = JsonSerializer.Serialize(payload.AsrSettings, new JsonSerializerOptions { WriteIndented = true });
+                        var asrJson = AotJson.Serialize(payload.AsrSettings, new JsonSerializerOptions { WriteIndented = true });
                         Directory.CreateDirectory(Path.GetDirectoryName(AsrSettingsPath)!);
                         File.WriteAllText(AsrSettingsPath, asrJson);
                     }

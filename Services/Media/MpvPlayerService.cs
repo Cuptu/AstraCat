@@ -27,6 +27,8 @@ public sealed class MpvPlayerService : IAsyncDisposable
     private bool _stopping;
     private long _renderCount;
     private long _renderTicks;
+    private readonly object _nativeLogSync = new();
+    private string? _nativeLogPath;
     private long _renderUpdateCallbackCount;
     private long _positionNotificationCount;
     private bool _renderContextWasCreated;
@@ -68,9 +70,9 @@ public sealed class MpvPlayerService : IAsyncDisposable
     public async Task StartAsync(MpvVideoHost host, string mediaPath, string? subtitlePath = null,
         CancellationToken cancellationToken = default, double? startPositionSeconds = null)
     {
-        if (!File.Exists(mediaPath)) throw new FileNotFoundException("媒体文件不存在。", mediaPath);
+        if (!MediaInput.Exists(mediaPath)) throw new FileNotFoundException("媒体文件或 HTTP(S) 地址不存在。", mediaPath);
         var libraryPath = MediaToolLocator.FindLibMpv();
-        if (libraryPath is null) throw new FileNotFoundException("未找到 libmpv-2.dll，无法启动内置播放器。");
+        if (libraryPath is null) throw new FileNotFoundException("未找到 libmpv 动态库，无法启动内置播放器。");
 
         await StopAsync();
         await _gate.WaitAsync(cancellationToken);
@@ -133,7 +135,7 @@ public sealed class MpvPlayerService : IAsyncDisposable
         }
     }
 
-    private static bool IsAudioOnlyMedia(string path) => Path.GetExtension(path).ToLowerInvariant() is
+    private static bool IsAudioOnlyMedia(string path) => MediaInput.Extension(path).ToLowerInvariant() is
         ".m4a" or ".mp3" or ".wav" or ".flac" or ".aac" or ".ogg" or ".opus" or ".wma";
 
     private void InitializeCore()
@@ -145,17 +147,31 @@ public sealed class MpvPlayerService : IAsyncDisposable
 
         SetOption("config", "no");
         SetOption("terminal", "no");
-        SetOption("msg-level", "all=warn");
+        var configuredLogLevel = Environment.GetEnvironmentVariable("ASTRACAT_MPV_LOG_LEVEL");
+        var logLevel = string.IsNullOrWhiteSpace(configuredLogLevel) ? "warn" : configuredLogLevel.Trim();
+        _nativeLogPath = Environment.GetEnvironmentVariable("ASTRACAT_MPV_LOG_FILE");
+        SetOption("msg-level", $"all={logLevel}");
         SetOption("vo", "libmpv");
-        // ANGLE's OpenGL context does not expose mpv's native D3D11 zero-copy
-        // interop on current Windows builds. Prefer the safe copy fallback;
-        // `auto` was measured to select the same d3d11va-copy path.
-        SetOption("hwdec", "auto-safe");
+        // Keep the order explicit on Windows. mpv's generic auto probe can
+        // select the older DXVA2 copy path even when D3D11VA is available.
+        // A comma-separated list falls through to copy and software decoding
+        // when zero-copy interop is unavailable on the active ANGLE context.
+        var configuredHwdec = Environment.GetEnvironmentVariable("ASTRACAT_MPV_HWDEC");
+        var defaultHwdec = OperatingSystem.IsWindows()
+            ? "d3d11va,d3d11va-copy,auto-safe"
+            : OperatingSystem.IsMacOS()
+                ? "videotoolbox,videotoolbox-copy,auto-safe"
+                : "vaapi,vaapi-copy,nvdec,nvdec-copy,auto-safe";
+        var hwdec = string.IsNullOrWhiteSpace(configuredHwdec)
+            ? defaultHwdec
+            : configuredHwdec.Trim();
+        SetOption("hwdec", hwdec);
         SetOption("keep-open", "yes");
         SetOption("idle", "yes");
         SetOption("pause", "yes");
         SetOption("input-default-bindings", "no");
-        SetOption("osc", "no");
+        // Some libmpv-only builds omit the OSC option entirely.
+        native.SetOptionString(handle, "osc", "no");
         SetOption("osd-bar", "no");
         SetOption("audio-display", "no");
         SetOption("sub-visibility", "yes");
@@ -164,7 +180,7 @@ public sealed class MpvPlayerService : IAsyncDisposable
         SetOption("sub-ass-scale-with-window", "yes");
 
         Check(native.Initialize(handle), "mpv_initialize");
-        native.RequestLogMessages(handle, "warn");
+        native.RequestLogMessages(handle, logLevel);
         Check(native.ObserveProperty(handle, 1, "time-pos", MpvFormat.Double), "observe time-pos");
         Check(native.ObserveProperty(handle, 2, "duration", MpvFormat.Double), "observe duration");
         Check(native.ObserveProperty(handle, 3, "pause", MpvFormat.Flag), "observe pause");
@@ -212,21 +228,75 @@ public sealed class MpvPlayerService : IAsyncDisposable
     public Task SeekRelativeAsync(double seconds, CancellationToken token = default) =>
         CommandAsync(token, "seek", seconds.ToString("0.###", CultureInfo.InvariantCulture), "relative+exact");
 
-    public async Task<string?> CaptureFrameAsync(CancellationToken token = default)
+    private double _playbackSpeed = 1.0;
+    public double PlaybackSpeed => _playbackSpeed;
+
+    public async Task SetPlaybackSpeedAsync(double speed, CancellationToken token = default)
+    {
+        var clamped = Math.Clamp(speed, 0.25, 4.0);
+        _playbackSpeed = clamped;
+        await CommandAsync(token, "set", "speed", clamped.ToString("0.##", CultureInfo.InvariantCulture)).ConfigureAwait(false);
+    }
+
+    public Task StepFrameForwardAsync(CancellationToken token = default) =>
+        CommandAsync(token, "frame-step");
+
+    public Task StepFrameBackwardAsync(CancellationToken token = default) =>
+        CommandAsync(token, "frame-back-step");
+
+    public IReadOnlyList<MediaAudioTrack> GetAudioTracks()
+    {
+        var native = _native;
+        var handle = _handle;
+        if (native is null || handle == IntPtr.Zero ||
+            !native.TryGetPropertyInt64(handle, "track-list/count", out var count))
+            return Array.Empty<MediaAudioTrack>();
+
+        native.TryGetPropertyInt64(handle, "aid", out var currentAid);
+        var result = new List<MediaAudioTrack>();
+        for (var index = 0L; index < count; index++)
+        {
+            if (!string.Equals(native.GetPropertyString(handle, $"track-list/{index}/type"), "audio",
+                    StringComparison.Ordinal)) continue;
+
+            if (native.TryGetPropertyInt64(handle, $"track-list/{index}/id", out var id))
+            {
+                var title = native.GetPropertyString(handle, $"track-list/{index}/title") ?? $"音轨 {id}";
+                var lang = native.GetPropertyString(handle, $"track-list/{index}/lang") ?? "und";
+                var isDefault = id == currentAid;
+                result.Add(new MediaAudioTrack(id, title, lang, isDefault));
+            }
+        }
+        return result;
+    }
+
+    public Task SetAudioTrackAsync(long trackId, CancellationToken token = default) =>
+        CommandAsync(token, "set", "aid", trackId.ToString(CultureInfo.InvariantCulture));
+
+    public Task<string?> CaptureFrameAsync(CancellationToken token = default) =>
+        CaptureFrameCoreAsync("video", token);
+
+    internal Task<string?> CaptureFrameWithSubtitlesAsync(CancellationToken token = default) =>
+        CaptureFrameCoreAsync("subtitles", token);
+
+    private async Task<string?> CaptureFrameCoreAsync(string mode, CancellationToken token)
     {
         if (!IsRunning) return null;
-        var tempJpg = Path.Combine(Path.GetTempPath(), $"astracat_shot_{Guid.NewGuid():N}.jpg");
+        // PNG keeps screenshots lossless and lets the private mpv build avoid
+        // a second, otherwise unused JPEG implementation. JPEG media decoding
+        // remains provided by the shared FFmpeg avcodec DLL.
+        var tempPng = Path.Combine(Path.GetTempPath(), $"astracat_shot_{Guid.NewGuid():N}.png");
         try
         {
-            await CommandAsync(token, "screenshot-to-file", tempJpg, "video");
+            await CommandAsync(token, "screenshot-to-file", tempPng, mode);
             for (var i = 0; i < 120; i++)
             {
-                if (File.Exists(tempJpg) && new FileInfo(tempJpg).Length > 0) return tempJpg;
+                if (File.Exists(tempPng) && new FileInfo(tempPng).Length > 0) return tempPng;
                 await Task.Delay(10, token);
             }
         }
         catch { }
-        try { if (File.Exists(tempJpg)) File.Delete(tempJpg); } catch { }
+        try { if (File.Exists(tempPng)) File.Delete(tempPng); } catch { }
         return null;
     }
 
@@ -292,6 +362,29 @@ public sealed class MpvPlayerService : IAsyncDisposable
             ? id
             : null;
     }
+
+    internal long? CurrentSubtitleIdForDiagnostics() => CurrentSubtitleId();
+
+    internal Task SetSubtitleVisibilityForDiagnosticsAsync(bool visible, CancellationToken token = default) =>
+        CommandAsync(token, "set", "sub-visibility", visible ? "yes" : "no");
+
+    internal long? FirstSubtitleTrackIdForDiagnostics()
+    {
+        var native = _native;
+        var handle = _handle;
+        if (native is null || handle == IntPtr.Zero ||
+            !native.TryGetPropertyInt64(handle, "track-list/count", out var count)) return null;
+        for (var index = 0L; index < count; index++)
+        {
+            if (!string.Equals(native.GetPropertyString(handle, $"track-list/{index}/type"), "sub",
+                    StringComparison.Ordinal)) continue;
+            if (native.TryGetPropertyInt64(handle, $"track-list/{index}/id", out var id)) return id;
+        }
+        return null;
+    }
+
+    internal Task SelectSubtitleTrackForDiagnosticsAsync(long id, CancellationToken token = default) =>
+        CommandAsync(token, "set", "sid", id.ToString(CultureInfo.InvariantCulture));
 
     private async Task TryCommandAsync(CancellationToken token, params string[] arguments)
     {
@@ -388,7 +481,6 @@ public sealed class MpvPlayerService : IAsyncDisposable
         }
         finally
         {
-            _activeGl = null;
             if (parameters != IntPtr.Zero) Marshal.FreeHGlobal(parameters);
             if (init != IntPtr.Zero) Marshal.FreeHGlobal(init);
             Marshal.FreeCoTaskMem(api);
@@ -433,7 +525,6 @@ public sealed class MpvPlayerService : IAsyncDisposable
         }
         finally
         {
-            _activeGl = null;
             Interlocked.Increment(ref _renderCount);
             Interlocked.Add(ref _renderTicks, Stopwatch.GetTimestamp() - renderStarted);
         }
@@ -441,6 +532,7 @@ public sealed class MpvPlayerService : IAsyncDisposable
 
     internal void ReleaseRenderContext()
     {
+        _activeGl = null;
         if (_renderContext == IntPtr.Zero || _native is null) return;
         _native.RenderContextSetUpdateCallback(_renderContext, null, IntPtr.Zero);
         _native.RenderContextFree(_renderContext);
@@ -450,6 +542,7 @@ public sealed class MpvPlayerService : IAsyncDisposable
 
     internal void NotifyOpenGlLost()
     {
+        _activeGl = null;
         _renderContextLost = true;
         SafeRaise(PlaybackError, "OpenGL 上下文已丢失；为避免复用无效 GPU 资源，请保存项目并重新启动 AstraCat。");
     }
@@ -565,10 +658,23 @@ public sealed class MpvPlayerService : IAsyncDisposable
     {
         if (data == IntPtr.Zero) return;
         var message = Marshal.PtrToStructure<MpvEventLogMessage>(data);
-        if (message.LogLevel > 20) return;
         var prefix = Marshal.PtrToStringUTF8(message.Prefix) ?? "mpv";
         var text = (Marshal.PtrToStringUTF8(message.Text) ?? string.Empty).Trim();
-        if (text.Length > 0) SafeRaise(PlaybackError, $"{prefix}: {text}");
+        if (text.Length == 0) return;
+        if (!string.IsNullOrWhiteSpace(_nativeLogPath))
+        {
+            try
+            {
+                lock (_nativeLogSync)
+                    File.AppendAllText(_nativeLogPath,
+                        $"{DateTime.Now:O} level={message.LogLevel} [{prefix}] {text}{Environment.NewLine}");
+            }
+            catch { }
+        }
+        if (message.LogLevel <= 20)
+            SafeRaise(PlaybackError, $"{prefix}: {text}");
+        else if (message.LogLevel <= 30)
+            Diagnostic?.Invoke(this, $"mpv[{prefix}]: {text}");
     }
 
     private static bool TryDouble(MpvEventProperty property, out double value)

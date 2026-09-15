@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Security.Cryptography;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Layout;
@@ -46,7 +47,7 @@ internal sealed class MpvRenderSmokeWindow : Window
         var exitCode = 1;
         try
         {
-            Check(File.Exists(_mediaPath), "测试媒体存在");
+            Check(MediaInput.Exists(_mediaPath), "测试媒体或 HTTP(S) 地址存在");
             await Task.Delay(750);
             for (var cycle = 1; cycle <= 3; cycle++)
             {
@@ -65,7 +66,10 @@ internal sealed class MpvRenderSmokeWindow : Window
             {
                 var directory = Path.GetDirectoryName(Path.GetFullPath(_logPath));
                 if (!string.IsNullOrWhiteSpace(directory)) Directory.CreateDirectory(directory);
-                await File.WriteAllLinesAsync(_logPath, _log);
+                // Native log callbacks can still have UI-thread writes queued
+                // while shutdown persists the result. Enumerating the live
+                // list lets those callbacks invalidate the async writer.
+                await File.WriteAllLinesAsync(_logPath, _log.ToArray());
             }
             finally
             {
@@ -101,6 +105,12 @@ internal sealed class MpvRenderSmokeWindow : Window
         await WaitUntilAsync(() => player.PositionSeconds >= before + 0.8,
             TimeSpan.FromSeconds(8), "播放时间正常推进");
         Write($"cycle {cycle}: playback advanced {before:0.###} -> {player.PositionSeconds:0.###}");
+        await WaitUntilAsync(() => !string.IsNullOrWhiteSpace(player.HardwareDecoder),
+            TimeSpan.FromSeconds(3), "硬件解码状态可读取");
+        Write($"cycle {cycle}: hwdec={player.HardwareDecoder}, decoder-drops={player.DecoderDroppedFrames}, vo-drops={player.VoDroppedFrames}");
+        if (string.Equals(Environment.GetEnvironmentVariable("ASTRACAT_REQUIRE_HWDEC"), "1", StringComparison.Ordinal))
+            Check(!string.Equals(player.HardwareDecoder, "no", StringComparison.OrdinalIgnoreCase),
+                $"cycle {cycle}: 已启用硬件解码 ({player.HardwareDecoder})");
 
         if (cycle == 1) await player.SetPauseAsync(true);
         else await player.TogglePauseAsync();
@@ -120,21 +130,70 @@ internal sealed class MpvRenderSmokeWindow : Window
 
         if (cycle == 1)
         {
+            if (string.Equals(Environment.GetEnvironmentVariable("ASTRACAT_EXPECT_EMBEDDED_SUBTITLE"), "1",
+                    StringComparison.Ordinal))
+            {
+                var embeddedTrackId = player.FirstSubtitleTrackIdForDiagnostics();
+                Check(embeddedTrackId is > 0, "发现内嵌字幕轨道");
+                await player.SelectSubtitleTrackForDiagnosticsAsync(embeddedTrackId!.Value);
+                await WaitUntilAsync(() => player.CurrentSubtitleIdForDiagnostics() == embeddedTrackId,
+                    TimeSpan.FromSeconds(3), "内嵌字幕轨道已选中");
+                await Task.Delay(500);
+                var embeddedFrame = await player.CaptureFrameWithSubtitlesAsync();
+                Check(embeddedFrame is not null, "内嵌字幕截图成功");
+                await player.SetSubtitleVisibilityForDiagnosticsAsync(false);
+                await Task.Delay(500);
+                var hiddenFrame = await player.CaptureFrameWithSubtitlesAsync();
+                Check(hiddenFrame is not null, "隐藏内嵌字幕后的基准截图成功");
+                try
+                {
+                    var embeddedHash = SHA256.HashData(await File.ReadAllBytesAsync(embeddedFrame!));
+                    var hiddenHash = SHA256.HashData(await File.ReadAllBytesAsync(hiddenFrame!));
+                    Check(!embeddedHash.SequenceEqual(hiddenHash), "内嵌字幕实际改变输出像素");
+                }
+                finally
+                {
+                    try { File.Delete(embeddedFrame!); } catch { }
+                    try { File.Delete(hiddenFrame!); } catch { }
+                }
+            }
+
+            var cleanScreenshot = await player.CaptureFrameWithSubtitlesAsync();
+            Check(cleanScreenshot is not null, "无字幕基准截图成功");
             var assPath = Path.Combine(Path.GetTempPath(), $"astracat_render_smoke_{Guid.NewGuid():N}.ass");
+            var srtPath = Path.Combine(Path.GetTempPath(), $"astracat_render_smoke_{Guid.NewGuid():N}.srt");
             await File.WriteAllTextAsync(assPath, BuildTestAss());
+            await File.WriteAllTextAsync(srtPath, BuildTestSrt());
             try
             {
                 await player.LoadSubtitleAsync(assPath);
+                Check(player.CurrentSubtitleIdForDiagnostics() is > 0, "ASS 字幕轨道已选中");
                 await player.ReloadSubtitleAsync(assPath);
                 await player.ReloadCurrentSubtitleAsync();
                 await player.ApplySubtitleStyleAsync("Arial", 64, "#FFFFFF", "#000000", 4);
                 await player.ApplySubtitleStyleAsync(SubtitleStyleDefinition.MainDefault());
                 await Task.Delay(250);
-                Write("cycle 1: ASS 字幕加载与重载命令已提交");
+                var subtitleScreenshot = await player.CaptureFrameWithSubtitlesAsync();
+                Check(subtitleScreenshot is not null, "ASS 字幕截图成功");
+                var cleanBytes = await File.ReadAllBytesAsync(cleanScreenshot!);
+                var subtitleBytes = await File.ReadAllBytesAsync(subtitleScreenshot!);
+                Check(IsPng(cleanBytes) && IsPng(subtitleBytes),
+                    "截图使用有效 PNG 格式");
+                var cleanHash = SHA256.HashData(cleanBytes);
+                var subtitleHash = SHA256.HashData(subtitleBytes);
+                Check(!cleanHash.SequenceEqual(subtitleHash),
+                    "ASS/libass 实际改变输出像素");
+                await player.LoadSubtitleAsync(srtPath);
+                Check(player.CurrentSubtitleIdForDiagnostics() is > 0, "SRT 字幕轨道已选中");
+                await player.ReloadSubtitleAsync(srtPath);
+                Write("cycle 1: ASS/SRT 字幕加载、热重载与像素渲染通过");
+                try { File.Delete(subtitleScreenshot!); } catch { }
             }
             finally
             {
                 try { File.Delete(assPath); } catch { }
+                try { File.Delete(srtPath); } catch { }
+                try { if (cleanScreenshot is not null) File.Delete(cleanScreenshot); } catch { }
             }
 
             var screenshot = await player.CaptureFrameAsync();
@@ -196,10 +255,21 @@ internal sealed class MpvRenderSmokeWindow : Window
 
         [V4+ Styles]
         Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-        Style: Default,Arial,64,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,4,1,2,40,40,60,1
+        Style: Default,AstraCatMissingFont,58,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,4,1,2,40,40,60,1
 
         [Events]
         Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
-        Dialogue: 0,0:00:00.00,9:59:59.00,Default,,0,0,0,,AstraCat Render API subtitle test
+        Dialogue: 0,0:00:00.00,9:59:59.00,Default,,0,0,0,,AstraCat 字体回退 العربية हिन्दी ไทย 😀
         """;
+
+    private static string BuildTestSrt() => """
+        1
+        00:00:00,000 --> 00:10:00,000
+        AstraCat SRT 热重载 العربية हिन्दी ไทย 😀
+
+        """;
+
+    private static bool IsPng(byte[] bytes) =>
+        bytes.Length >= 8 && bytes.AsSpan(0, 8).SequenceEqual(
+            new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A });
 }

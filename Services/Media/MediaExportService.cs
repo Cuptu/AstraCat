@@ -165,13 +165,35 @@ public sealed class MediaExportService
         _ => ".mp4"
     };
 
-    /// <summary>Detects GPU encoders by listing the encoders compiled into the local FFmpeg. Cached process-wide.</summary>
+    /// <summary>Detects compiled software encoders and actually initializes each GPU encoder. Cached process-wide.</summary>
     public static Task<HardwareEncoderInfo> GetHardwareEncodersAsync() => HardwareEncoders.Value;
 
     private static async Task<HardwareEncoderInfo> DetectHardwareEncodersAsync()
     {
         try
         {
+            // 优先通过 AstraCore Native C ABI 直接在内存中探测硬件和软件编码器（微秒级，无需启动 10+ 个子进程或写磁盘）
+            if (AstraCoreNative.TryCheckEncoder("libx264", out var hasLibx264) && hasLibx264)
+            {
+                AstraCoreNative.TryCheckEncoder("h264_nvenc", out var hasNvencH264);
+                AstraCoreNative.TryCheckEncoder("hevc_nvenc", out var hasNvencHevc);
+                AstraCoreNative.TryCheckEncoder("av1_nvenc", out var hasNvencAv1);
+                AstraCoreNative.TryCheckEncoder("h264_qsv", out var hasQsvH264);
+                AstraCoreNative.TryCheckEncoder("hevc_qsv", out var hasQsvHevc);
+                AstraCoreNative.TryCheckEncoder("av1_qsv", out var hasQsvAv1);
+                AstraCoreNative.TryCheckEncoder("h264_amf", out var hasAmfH264);
+                AstraCoreNative.TryCheckEncoder("hevc_amf", out var hasAmfHevc);
+                AstraCoreNative.TryCheckEncoder("av1_amf", out var hasAmfAv1);
+                AstraCoreNative.TryCheckEncoder("libx265", out var hasX265);
+                AstraCoreNative.TryCheckEncoder("libsvtav1", out var hasSvtAv1);
+
+                return new HardwareEncoderInfo(
+                    hasNvencH264, hasNvencHevc, hasNvencAv1,
+                    hasQsvH264, hasQsvHevc, hasQsvAv1,
+                    hasAmfH264, hasAmfHevc, hasAmfAv1,
+                    hasX265, hasSvtAv1);
+            }
+
             var ffmpeg = MediaToolLocator.FindFfmpeg();
             if (ffmpeg is null) return HardwareEncoderInfo.None;
             var info = new ProcessStartInfo
@@ -203,17 +225,77 @@ public sealed class MediaExportService
             await errorTask;
             if (process.ExitCode != 0 || string.IsNullOrEmpty(output)) return HardwareEncoderInfo.None;
             bool Has(string name) => output.Contains(name, StringComparison.Ordinal);
-            return new HardwareEncoderInfo(
-                Has("h264_nvenc"), Has("hevc_nvenc"), Has("av1_nvenc"),
-                Has("h264_qsv"), Has("hevc_qsv"), Has("av1_qsv"),
-                Has("h264_amf"), Has("hevc_amf"), Has("av1_amf"),
-                Has("libx265"), Has("libsvtav1") || Has("libsvt_av1"));
+            var probeRoot = Path.Combine(Path.GetTempPath(), $"astracat_encoder_probe_{Guid.NewGuid():N}");
+            Directory.CreateDirectory(probeRoot);
+            try
+            {
+                var imagePath = Path.Combine(probeRoot, "frame.png");
+                await File.WriteAllBytesAsync(imagePath, HardwareProbePng);
+                async Task<bool> Available(string encoder, string extension) =>
+                    Has(encoder) && await ProbeHardwareEncoderAsync(ffmpeg, encoder, imagePath,
+                        Path.Combine(probeRoot, $"{encoder}{extension}"));
+
+                return new HardwareEncoderInfo(
+                    await Available("h264_nvenc", ".mp4"), await Available("hevc_nvenc", ".mp4"), await Available("av1_nvenc", ".mkv"),
+                    await Available("h264_qsv", ".mp4"), await Available("hevc_qsv", ".mp4"), await Available("av1_qsv", ".mkv"),
+                    await Available("h264_amf", ".mp4"), await Available("hevc_amf", ".mp4"), await Available("av1_amf", ".mkv"),
+                    Has("libx265"), Has("libsvtav1") || Has("libsvt_av1"));
+            }
+            finally
+            {
+                try { Directory.Delete(probeRoot, recursive: true); } catch { }
+            }
         }
         catch
         {
             return HardwareEncoderInfo.None;
         }
     }
+
+    private static async Task<bool> ProbeHardwareEncoderAsync(
+        string ffmpeg, string encoder, string inputPath, string outputPath)
+    {
+        var info = new ProcessStartInfo
+        {
+            FileName = ffmpeg,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        foreach (var argument in new[]
+                 {
+                     "-nostdin", "-hide_banner", "-v", "error", "-loop", "1", "-i", inputPath,
+                     "-frames:v", "1", "-an", "-vf", "scale=256:256,format=yuv420p",
+                     "-c:v", encoder, "-y", outputPath
+                 })
+            info.ArgumentList.Add(argument);
+
+        using var process = Process.Start(info);
+        if (process is null) return false;
+        var outputTask = process.StandardOutput.ReadToEndAsync();
+        var errorTask = process.StandardError.ReadToEndAsync();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+        try
+        {
+            await process.WaitForExitAsync(timeout.Token);
+            await Task.WhenAll(outputTask, errorTask);
+            return process.ExitCode == 0 && File.Exists(outputPath) && new FileInfo(outputPath).Length > 0;
+        }
+        catch (OperationCanceledException)
+        {
+            TryTerminate(process);
+            await WaitForTerminationAsync(process);
+            try { await Task.WhenAll(outputTask, errorTask); } catch { }
+            return false;
+        }
+    }
+
+    // Deterministic 64x64 RGB PNG used only to force real encoder/device
+    // initialization. Listing `ffmpeg -encoders` cannot prove that a matching
+    // GPU or vendor runtime exists on the current machine.
+    private static readonly byte[] HardwareProbePng = Convert.FromBase64String(
+        "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAABjSURBVGhD7c9BDQAgEMAwpKALnQhEAAKWS5r0td/Wvme09adZDNQM1AzUDNQM1AzUDNQM1AzUDNQM1AzUDNQM1AzUDNQM1AzUDNQM1AzUDNQM1AzUDNQM1AzUDNQM1AzUDNQeP/3hD8xFTD0AAAAASUVORK5CYII=");
 
     private static ExportEncoder ResolveEncoder(ExportEncoder requested, ExportVideoCodec codec, HardwareEncoderInfo hardware) =>
         requested == ExportEncoder.Auto
@@ -236,9 +318,102 @@ public sealed class MediaExportService
         _ => "libx264"
     };
 
+    public async Task<IReadOnlyList<EmbeddedSubtitleTrack>> GetEmbeddedSubtitleTracksAsync(
+        string mediaPath, CancellationToken cancellationToken = default)
+    {
+        if (!MediaInput.Exists(mediaPath)) return Array.Empty<EmbeddedSubtitleTrack>();
+        var ffprobe = MediaToolLocator.FindFfprobe();
+        if (ffprobe is null) return Array.Empty<EmbeddedSubtitleTrack>();
+
+        var info = new ProcessStartInfo
+        {
+            FileName = ffprobe,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        foreach (var arg in new[]
+                 {
+                     "-v", "error", "-select_streams", "s",
+                     "-show_entries", "stream=index,codec_name:stream_tags=language,title",
+                     "-of", "json", mediaPath
+                 })
+            info.ArgumentList.Add(arg);
+
+        using var process = Process.Start(info);
+        if (process is null) return Array.Empty<EmbeddedSubtitleTrack>();
+        using var reg = cancellationToken.Register(() => TryTerminate(process));
+        var output = await process.StandardOutput.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+        if (process.ExitCode != 0 || string.IsNullOrWhiteSpace(output)) return Array.Empty<EmbeddedSubtitleTrack>();
+
+        try
+        {
+            using var doc = JsonDocument.Parse(output);
+            if (!doc.RootElement.TryGetProperty("streams", out var streams) || streams.ValueKind != JsonValueKind.Array)
+                return Array.Empty<EmbeddedSubtitleTrack>();
+
+            var tracks = new List<EmbeddedSubtitleTrack>();
+            foreach (var stream in streams.EnumerateArray())
+            {
+                var idx = stream.TryGetProperty("index", out var idxElem) && idxElem.TryGetInt32(out var parsedIdx) ? parsedIdx : -1;
+                var codec = stream.TryGetProperty("codec_name", out var codecElem) ? codecElem.GetString() ?? "unknown" : "unknown";
+                var lang = "und";
+                var title = $"字幕轨 {idx}";
+                if (stream.TryGetProperty("tags", out var tags))
+                {
+                    if (tags.TryGetProperty("language", out var langElem) && langElem.GetString() is { } l) lang = l;
+                    if (tags.TryGetProperty("title", out var titleElem) && titleElem.GetString() is { } t) title = t;
+                }
+                if (idx >= 0) tracks.Add(new EmbeddedSubtitleTrack(idx, codec, lang, title));
+            }
+            return tracks;
+        }
+        catch { return Array.Empty<EmbeddedSubtitleTrack>(); }
+    }
+
+    public async Task<bool> ExtractEmbeddedSubtitleAsync(
+        string mediaPath, int streamIndex, string outputPath, CancellationToken cancellationToken = default)
+    {
+        var ffmpeg = MediaToolLocator.FindFfmpeg();
+        if (ffmpeg is null || !File.Exists(mediaPath)) return false;
+
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outputPath))!);
+        var info = new ProcessStartInfo
+        {
+            FileName = ffmpeg,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        foreach (var arg in new[] { "-hide_banner", "-y", "-i", mediaPath, "-map", $"0:{streamIndex}", outputPath })
+            info.ArgumentList.Add(arg);
+
+        using var process = Process.Start(info);
+        if (process is null) return false;
+        using var reg = cancellationToken.Register(() => TryTerminate(process));
+        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+        return process.ExitCode == 0 && File.Exists(outputPath);
+    }
+
     public async Task<MediaProbeInfo> ProbeAsync(string inputPath, CancellationToken cancellationToken = default)
     {
-        if (!File.Exists(inputPath)) throw new FileNotFoundException("媒体文件不存在。", inputPath);
+        if (!MediaInput.Exists(inputPath)) throw new FileNotFoundException("媒体文件或 HTTP(S) 地址不存在。", inputPath);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var (probed, nativeProbe, nativeErr) = await Task.Run(() =>
+        {
+            var ok = AstraCoreNative.TryProbe(inputPath, out var info, cancellationToken, out var err);
+            return (ok, info, err);
+        }, cancellationToken).ConfigureAwait(false);
+
+        if (probed) return nativeProbe;
+        if (!string.IsNullOrWhiteSpace(nativeErr))
+        {
+            Trace.TraceInformation($"[MediaExportService] 原生探针回退至 CLI: {nativeErr}");
+        }
+
         var executable = MediaToolLocator.FindFfprobe();
         if (executable is null) return MediaProbeInfo.Unknown;
 
@@ -405,10 +580,10 @@ public sealed class MediaExportService
         IProgress<MediaExportProgress>? progress,
         CancellationToken cancellationToken)
     {
-        if (!File.Exists(options.InputPath)) throw new FileNotFoundException("媒体文件不存在。", options.InputPath);
+        if (!MediaInput.Exists(options.InputPath)) throw new FileNotFoundException("媒体文件或 HTTP(S) 地址不存在。", options.InputPath);
         if (!options.IncludeVideo && !options.IncludeAudio) throw new InvalidOperationException("请至少选择视频或音频中的一项。");
         var ffmpeg = MediaToolLocator.FindFfmpeg() ??
-                     throw new FileNotFoundException("未找到 FFmpeg。请将它放入 runtime/tools/ffmpeg，或加入 PATH。");
+                     throw new FileNotFoundException("未找到 FFmpeg。请安装 AstraCore 运行时，或准备兼容的 runtime/tools/ffmpeg。开发时可显式允许系统工具。");
 
         var outputDirectory = Path.GetDirectoryName(options.OutputPath);
         if (string.IsNullOrWhiteSpace(outputDirectory)) outputDirectory = Environment.CurrentDirectory;
@@ -672,6 +847,11 @@ public sealed class MediaExportService
 
             var source = sources.FirstOrDefault(path => !string.IsNullOrWhiteSpace(path) && File.Exists(path));
             if (source is null) return;
+
+            // 优先在内存中直接进行 SRT 与 ASS 的格式转换（零子进程、零 I/O 管道开销）
+            if (TryConvertSubtitleFormatInMemory(source, target))
+                return;
+
             var ffmpeg = MediaToolLocator.FindFfmpeg();
             if (ffmpeg is null) return;
             // 经 FFmpeg 在 SRT/ASS 等字幕格式之间转换
@@ -712,6 +892,131 @@ public sealed class MediaExportService
         catch
         {
             // 字幕文件导出是附加能力，失败不影响已完成的视频导出
+        }
+    }
+
+    internal static bool TryConvertSubtitleFormatInMemory(string sourcePath, string targetPath)
+    {
+        try
+        {
+            var srcExt = Path.GetExtension(sourcePath).ToLowerInvariant();
+            var tgtExt = Path.GetExtension(targetPath).ToLowerInvariant();
+            if (srcExt == tgtExt)
+            {
+                File.Copy(sourcePath, targetPath, overwrite: true);
+                return true;
+            }
+
+            var text = File.ReadAllText(sourcePath, Encoding.UTF8);
+            if (srcExt == ".srt" && tgtExt == ".ass")
+            {
+                var sb = new StringBuilder();
+                sb.AppendLine("[Script Info]");
+                sb.AppendLine("ScriptType: v4.00+");
+                sb.AppendLine("PlayResX: 1920");
+                sb.AppendLine("PlayResY: 1080");
+                sb.AppendLine("ScaledBorderAndShadow: yes");
+                sb.AppendLine();
+                sb.AppendLine("[V4+ Styles]");
+                sb.AppendLine("Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding");
+                sb.AppendLine("Style: Default,Arial,50,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,2,1,2,20,20,20,1");
+                sb.AppendLine();
+                sb.AppendLine("[Events]");
+                sb.AppendLine("Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text");
+
+                var timeRegex = new Regex(@"(?<sh>\d{1,2}):(?<sm>\d{2}):(?<ss>\d{2})[,.](?<sms>\d{2,3})\s*-->\s*(?<eh>\d{1,2}):(?<em>\d{2}):(?<es>\d{2})[,.](?<ems>\d{2,3})");
+                var lines = text.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+                string? currentStart = null;
+                string? currentEnd = null;
+                var currentDialogue = new StringBuilder();
+
+                void FlushDialogue()
+                {
+                    if (currentStart != null && currentEnd != null && currentDialogue.Length > 0)
+                    {
+                        var diaText = currentDialogue.ToString().Trim().Replace("\r\n", "\\N").Replace("\n", "\\N").Replace("\r", "\\N");
+                        sb.AppendLine($"Dialogue: 0,{currentStart},{currentEnd},Default,,0,0,0,,{diaText}");
+                    }
+                    currentStart = null;
+                    currentEnd = null;
+                    currentDialogue.Clear();
+                }
+
+                foreach (var rawLine in lines)
+                {
+                    var line = rawLine.Trim();
+                    if (string.IsNullOrEmpty(line))
+                    {
+                        FlushDialogue();
+                        continue;
+                    }
+
+                    var match = timeRegex.Match(line);
+                    if (match.Success)
+                    {
+                        FlushDialogue();
+                        var sh = int.Parse(match.Groups["sh"].Value, CultureInfo.InvariantCulture);
+                        var sm = int.Parse(match.Groups["sm"].Value, CultureInfo.InvariantCulture);
+                        var ss = int.Parse(match.Groups["ss"].Value, CultureInfo.InvariantCulture);
+                        var sms = int.Parse(match.Groups["sms"].Value.PadRight(3, '0')[..3], CultureInfo.InvariantCulture);
+                        var eh = int.Parse(match.Groups["eh"].Value, CultureInfo.InvariantCulture);
+                        var em = int.Parse(match.Groups["em"].Value, CultureInfo.InvariantCulture);
+                        var es = int.Parse(match.Groups["es"].Value, CultureInfo.InvariantCulture);
+                        var ems = int.Parse(match.Groups["ems"].Value.PadRight(3, '0')[..3], CultureInfo.InvariantCulture);
+
+                        currentStart = $"{sh}:{sm:D2}:{ss:D2}.{sms / 10:D2}";
+                        currentEnd = $"{eh}:{em:D2}:{es:D2}.{ems / 10:D2}";
+                        continue;
+                    }
+
+                    if (currentStart != null && currentEnd != null)
+                    {
+                        if (currentDialogue.Length > 0) currentDialogue.Append("\\N");
+                        currentDialogue.Append(line);
+                    }
+                }
+                FlushDialogue();
+                File.WriteAllText(targetPath, sb.ToString(), new UTF8Encoding(false));
+                return true;
+            }
+            if (srcExt == ".ass" && tgtExt == ".srt")
+            {
+                var sb = new StringBuilder();
+                var lines = text.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+                int cueIndex = 1;
+                foreach (var line in lines)
+                {
+                    if (!line.StartsWith("Dialogue:", StringComparison.OrdinalIgnoreCase)) continue;
+                    var commaParts = line.Substring("Dialogue:".Length).Split(',', 10);
+                    if (commaParts.Length < 10) continue;
+                    var startStr = commaParts[1].Trim();
+                    var endStr = commaParts[2].Trim();
+                    var diaText = commaParts[9].Trim();
+
+                    // Remove ASS override tags {...}
+                    diaText = Regex.Replace(diaText, @"\{[^}]*\}", "");
+                    diaText = diaText.Replace("\\N", "\r\n").Replace("\\n", "\r\n");
+
+                    if (TimeSpan.TryParse(startStr, CultureInfo.InvariantCulture, out var startTime) &&
+                        TimeSpan.TryParse(endStr, CultureInfo.InvariantCulture, out var endTime))
+                    {
+                        sb.AppendLine(cueIndex++.ToString(CultureInfo.InvariantCulture));
+                        sb.AppendLine($"{(int)startTime.TotalHours:D2}:{startTime.Minutes:D2}:{startTime.Seconds:D2},{startTime.Milliseconds:D3} --> {(int)endTime.TotalHours:D2}:{endTime.Minutes:D2}:{endTime.Seconds:D2},{endTime.Milliseconds:D3}");
+                        sb.AppendLine(diaText);
+                        sb.AppendLine();
+                    }
+                }
+                if (cueIndex > 1)
+                {
+                    File.WriteAllText(targetPath, sb.ToString(), new UTF8Encoding(false));
+                    return true;
+                }
+            }
+            return false;
+        }
+        catch
+        {
+            return false;
         }
     }
 

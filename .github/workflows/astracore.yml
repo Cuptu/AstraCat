@@ -1,0 +1,66 @@
+name: Build AstraCore Windows runtime
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "native/astracore/**"
+      - "scripts/*AstraCore*.ps1"
+      - "scripts/*astracore*.ps1"
+      - ".github/workflows/astracore.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  win-x64:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install MSYS2 CLANG64 toolchain
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: CLANG64
+          update: true
+          install: >-
+            base-devel git patch
+            mingw-w64-clang-x86_64-toolchain
+            mingw-w64-clang-x86_64-cmake
+            mingw-w64-clang-x86_64-meson
+            mingw-w64-clang-x86_64-ninja
+            mingw-w64-clang-x86_64-python-jinja
+            mingw-w64-clang-x86_64-vulkan-headers
+            mingw-w64-clang-x86_64-pkgconf
+            mingw-w64-clang-x86_64-nasm
+            mingw-w64-clang-x86_64-yasm
+            mingw-w64-clang-x86_64-freetype
+            mingw-w64-clang-x86_64-fribidi
+            mingw-w64-clang-x86_64-harfbuzz
+            mingw-w64-clang-x86_64-libunibreak
+            mingw-w64-clang-x86_64-x264
+            mingw-w64-clang-x86_64-svt-av1
+            mingw-w64-clang-x86_64-ffnvcodec-headers
+            mingw-w64-clang-x86_64-amf-headers
+            mingw-w64-clang-x86_64-libvpl
+            mingw-w64-clang-x86_64-angleproject
+            mingw-w64-clang-x86_64-lcms2
+            mingw-w64-clang-x86_64-zlib
+
+      - name: Prepare pinned source trees
+        shell: pwsh
+        run: ./scripts/prepare-astracore-sources.ps1
+
+      - name: Build and validate AstraCore
+        shell: pwsh
+        env:
+          ASTRACAT_MSYS2_BASH: C:\msys64\usr\bin\bash.exe
+        run: ./scripts/build-astracore.ps1
+
+      - name: Upload native runtime
+        uses: actions/upload-artifact@v4
+        with:
+          name: AstraCore-win-x64
+          path: artifacts/astracore/win-x64
+          if-no-files-found: error

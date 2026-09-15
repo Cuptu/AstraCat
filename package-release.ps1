@@ -9,26 +9,48 @@
     包含 ffmpeg.exe、ffprobe.exe 和 FFmpeg 运行 DLL 的固定 Windows x64 shared 构建目录。
     未指定时依次使用 ASTRACAT_FFMPEG_DIR、仓库 runtime/tools/ffmpeg、
     WinGet 安装的 BtbN FFmpeg 8.1 Shared 和 PATH。
+
+.PARAMETER AstraCoreDir
+    已生成并通过校验的 win-x64 AstraCore 目录。指定后正式包只携带
+    runtime/tools/astracore/win-x64，不再复制旧 mpv/FFmpeg 目录。
 #>
 
 param(
     [string]$Version = $env:ASTRACAT_VERSION,
     [string]$FfmpegDir = $env:ASTRACAT_FFMPEG_DIR,
-    [string]$OutputDirectory = ""
+    [string]$AstraCoreDir = $env:ASTRACAT_MEDIA_RUNTIME,
+    [string]$OutputDirectory = "",
+    [switch]$NativeAot
 )
 
 $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 Add-Type -AssemblyName System.IO.Compression
 
-if ([string]::IsNullOrWhiteSpace($Version)) { $Version = "0.1.0-DEV" }
-if ($Version.StartsWith("v", [StringComparison]::OrdinalIgnoreCase)) { $Version = $Version.Substring(1) }
-if ($Version -cnotmatch '^\d+\.\d+\.\d+-DEV$') {
-    throw "发布失败：DEV 版本号必须是 0.1.0-DEV 这样的格式。当前值：$Version"
-}
-
 $rootDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $rootDir) { $rootDir = Get-Location }
+
+if ([string]::IsNullOrWhiteSpace($Version)) {
+    $csprojPath = Join-Path $rootDir "AstraCat.csproj"
+    if (Test-Path $csprojPath) {
+        $match = Select-String -Path $csprojPath -Pattern '<Version>(.+?)</Version>'
+        if ($match -and $match.Matches.Groups[1].Value) {
+            $Version = $match.Matches.Groups[1].Value
+        }
+    }
+}
+if ([string]::IsNullOrWhiteSpace($Version)) { $Version = "0.1.2-DEV" }
+if ($Version.StartsWith("v", [StringComparison]::OrdinalIgnoreCase)) { $Version = $Version.Substring(1) }
+if ($Version -cnotmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') {
+    throw "发布失败：版本号必须是 0.1.2 或 0.1.2-DEV 这样的语义化版本格式。当前值：$Version"
+}
+
+if ([string]::IsNullOrWhiteSpace($AstraCoreDir)) {
+    $defaultAstraCore = Join-Path $rootDir "artifacts\astracore\win-x64"
+    if (Test-Path (Join-Path $defaultAstraCore "astracore-runtime.json")) {
+        $AstraCoreDir = $defaultAstraCore
+    }
+}
 $distDir = if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
     Join-Path $rootDir "dist"
 } elseif ([IO.Path]::IsPathRooted($OutputDirectory)) {
@@ -50,13 +72,23 @@ if (Test-Path $distDir) {
 }
 New-Item -ItemType Directory -Path $distDir | Out-Null
 
-Write-Host "1. 执行 .NET 10 (win-x64) 独立运行时编译发布..." -ForegroundColor Yellow
 $publishDir = Join-Path $distDir "raw-publish"
-dotnet restore (Join-Path $rootDir "AstraCat.csproj") -r win-x64 --locked-mode
-if ($LASTEXITCODE -ne 0) { throw "发布失败：NuGet 锁定还原失败。" }
-dotnet publish (Join-Path $rootDir "AstraCat.csproj") -c Release -r win-x64 --self-contained --no-restore `
-    -p:Version=$Version -p:DebugType=None -p:DebugSymbols=false -o $publishDir
-if ($LASTEXITCODE -ne 0) { throw "发布失败：dotnet publish 执行失败。" }
+if ($NativeAot) {
+    Write-Host "1. 执行 .NET 10 (win-x64) Native AOT 原生编译发布..." -ForegroundColor Yellow
+    $lockPath = Join-Path $distDir "packages.lock.json"
+    Copy-Item -LiteralPath (Join-Path $rootDir "packages.lock.json") -Destination $lockPath
+    dotnet publish (Join-Path $rootDir "AstraCat.csproj") -c Release -r win-x64 `
+        -p:PublishProfile=NativeAot -p:PublishAot=true "-p:NuGetLockFilePath=$lockPath" `
+        -p:Version=$Version -p:DebugType=None -p:DebugSymbols=false -o $publishDir
+    if ($LASTEXITCODE -ne 0) { throw "发布失败：dotnet publish Native AOT 执行失败。" }
+} else {
+    Write-Host "1. 执行 .NET 10 (win-x64) 独立运行时编译发布..." -ForegroundColor Yellow
+    dotnet restore (Join-Path $rootDir "AstraCat.csproj") -r win-x64 --locked-mode
+    if ($LASTEXITCODE -ne 0) { throw "发布失败：NuGet 锁定还原失败。" }
+    dotnet publish (Join-Path $rootDir "AstraCat.csproj") -c Release -r win-x64 --self-contained --no-restore `
+        -p:Version=$Version -p:DebugType=None -p:DebugSymbols=false -o $publishDir
+    if ($LASTEXITCODE -ne 0) { throw "发布失败：dotnet publish 执行失败。" }
+}
 
 # 去除 NuGet 附带的冗余 .pdb 调试符号文件 (节省约 100MB)
 Get-ChildItem -Recurse $publishDir -Filter "*.pdb" | Remove-Item -Force
@@ -81,7 +113,24 @@ Copy-Item (Join-Path $rootDir "Assets\Brand\AstraCatLogo.png") $readmeBrandTarge
 Copy-Item (Join-Path $rootDir "Assets\Badges\*.svg") $readmeBadgesTarget -Force
 Copy-Item (Join-Path $rootDir "docs\images\*") $readmeImagesTarget -Force
 
-# 发布目录只保留应用实际加载的 libmpv-2.dll；csproj 已排除 mpv.exe、开发头文件和静态库。
+# 优先组装统一 AstraCore。未提供时保留旧依赖路径，便于开发过渡；正式
+# AstraCore 发布绝不混装两套 libav ABI。
+$usingAstraCore = -not [string]::IsNullOrWhiteSpace($AstraCoreDir)
+if ($usingAstraCore) {
+    $AstraCoreDir = [IO.Path]::GetFullPath($AstraCoreDir)
+    & (Join-Path $rootDir "scripts\Test-AstraCoreRuntime.ps1") -RuntimeDirectory $AstraCoreDir
+    $legacyMpv = Join-Path $layoutDir "runtime\tools\mpv"
+    $legacyFfmpeg = Join-Path $layoutDir "runtime\tools\ffmpeg"
+    if (Test-Path -LiteralPath $legacyMpv) { Remove-Item -LiteralPath $legacyMpv -Recurse -Force }
+    if (Test-Path -LiteralPath $legacyFfmpeg) { Remove-Item -LiteralPath $legacyFfmpeg -Recurse -Force }
+    $astraCoreTarget = Join-Path $layoutDir "runtime\tools\astracore\win-x64"
+    New-Item -ItemType Directory -Path $astraCoreTarget -Force | Out-Null
+    Copy-Item -Path (Join-Path $AstraCoreDir "*") -Destination $astraCoreTarget -Recurse -Force
+    & (Join-Path $rootDir "scripts\Test-AstraCoreRuntime.ps1") -RuntimeDirectory $astraCoreTarget -DistributionRoot $layoutDir
+    Write-Host "   已内置统一 AstraCore win-x64 运行时" -ForegroundColor Gray
+} else {
+# 发布目录只保留应用实际加载的 libmpv-2.dll 和根目录 EGL ABI 桥；
+# csproj 已排除 mpv.exe、开发头文件和静态库。
 $mpvDir = Join-Path $layoutDir "runtime\tools\mpv"
 $libMpvPath = Join-Path $mpvDir "libmpv-2.dll"
 if (-not (Test-Path $libMpvPath)) { throw "发布失败：缺少 runtime\tools\mpv\libmpv-2.dll" }
@@ -89,6 +138,13 @@ $expectedLibMpvHash = "82BE8EDD8E61BD7A02458EFAF648D6414E262D59E9873D516A2E10757
 $actualLibMpvHash = (Get-FileHash -Algorithm SHA256 $libMpvPath).Hash
 if ($actualLibMpvHash -ne $expectedLibMpvHash) {
     throw "发布失败：libmpv-2.dll SHA-256 不符合固定供应链版本：$actualLibMpvHash"
+}
+$eglBridgePath = Join-Path $layoutDir "libEGL.dll"
+if (-not (Test-Path $eglBridgePath)) { throw "发布失败：缺少 Avalonia ANGLE EGL 桥 libEGL.dll" }
+$expectedEglBridgeHash = "22005170E92E7629012A7A524D983632383242DC684EFA80A1C2FD286A7902D8"
+$actualEglBridgeHash = (Get-FileHash -Algorithm SHA256 $eglBridgePath).Hash
+if ($actualEglBridgeHash -ne $expectedEglBridgeHash) {
+    throw "发布失败：libEGL.dll SHA-256 不符合固定桥接版本：$actualEglBridgeHash"
 }
 $forbiddenMpvArtifacts = Get-ChildItem -Recurse $layoutDir -File | Where-Object {
     $_.Name -in @("mpv.exe", "mpv.com", "libmpv.dll.a", "input.conf") -or
@@ -186,6 +242,15 @@ $ffmpegManifest += Get-ChildItem $ffmpegTarget -File |
     ForEach-Object { "$($_.Name) SHA-256: $((Get-FileHash -Algorithm SHA256 $_.FullName).Hash)" }
 $ffmpegManifest | Set-Content (Join-Path $ffmpegTarget "FFMPEG_SOURCE.txt") -Encoding UTF8
 Write-Host "   已内置 $ffmpegVersionLine" -ForegroundColor Gray
+}
+
+$eglBridgePath = Join-Path $layoutDir "libEGL.dll"
+if (-not (Test-Path $eglBridgePath)) { throw "发布失败：缺少 Avalonia ANGLE EGL 桥 libEGL.dll" }
+$expectedEglBridgeHash = "22005170E92E7629012A7A524D983632383242DC684EFA80A1C2FD286A7902D8"
+$actualEglBridgeHash = (Get-FileHash -Algorithm SHA256 $eglBridgePath).Hash
+if ($actualEglBridgeHash -ne $expectedEglBridgeHash) {
+    throw "发布失败：libEGL.dll SHA-256 不符合固定桥接版本：$actualEglBridgeHash"
+}
 
 # 补充 engines 脚本与预设 runtime 目录结构
 $enginesTarget = Join-Path $layoutDir "engines"
@@ -197,6 +262,22 @@ if (Test-Path (Join-Path $rootDir "engines\README.md")) {
 New-Item -ItemType Directory -Path (Join-Path $layoutDir "runtime\models") -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $layoutDir "runtime\cache") -Force | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $layoutDir "runtime\config") -Force | Out-Null
+
+if ($NativeAot) {
+    Write-Host "   正在对最终发布目录执行 Native AOT 契约验证..." -ForegroundColor Gray
+    $smokeReport = Join-Path $distDir "native-aot-smoke.txt"
+    $smokeProcess = Start-Process -FilePath (Join-Path $layoutDir 'AstraCat.exe') `
+        -ArgumentList @('--native-aot-smoke', ('"' + $smokeReport + '"')) `
+        -WorkingDirectory $layoutDir -WindowStyle Hidden -PassThru
+    if (-not $smokeProcess.WaitForExit(60000)) {
+        $smokeProcess.Kill()
+        throw "发布失败：Native AOT 契约检查超时。"
+    }
+    if ($smokeProcess.ExitCode -ne 0) {
+        throw "发布失败：Native AOT 契约检查失败，请检查 $smokeReport。"
+    }
+    Write-Host "   已通过 Native AOT 离线契约检查" -ForegroundColor Gray
+}
 
 Write-Host "3. 压缩为标准 ZIP 免安装绿色包..." -ForegroundColor Yellow
 $zipPath = Join-Path $distDir "AstraCat-v$Version-win-x64.zip"

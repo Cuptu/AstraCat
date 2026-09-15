@@ -17,21 +17,43 @@ internal static class WaveformService
     public static async Task<WaveformData> LoadAsync(string mediaPath, string cacheRoot, CancellationToken token)
     {
         Directory.CreateDirectory(cacheRoot);
-        var info = new FileInfo(mediaPath);
         var cacheKey = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
-            $"{info.FullName}|{info.Length}|{info.LastWriteTimeUtc.Ticks}|v4"))).ToLowerInvariant();
+            $"{MediaInput.CacheIdentity(mediaPath)}|v4"))).ToLowerInvariant();
         var cachePath = Path.Combine(cacheRoot, $"{cacheKey}.waveform.bin");
         var cached = await TryReadCacheAsync(cachePath, token).ConfigureAwait(false);
         if (cached is not null) return cached;
 
         var duration = await ProbeDurationAsync(mediaPath, token).ConfigureAwait(false);
-        var ffmpeg = MediaToolLocator.FindFfmpeg() ??
-                     throw new FileNotFoundException("未找到 FFmpeg。请将 ffmpeg 放入 runtime/tools/ffmpeg，或加入 PATH。");
-
         var samplesPerPeak = duration > 0
             ? Math.Max(1L, (long)Math.Ceiling(duration * SampleRate /
                 Math.Min(MaximumPeaks, Math.Max(1d, duration * TargetPeaksPerSecond))))
             : Math.Max(1, SampleRate / TargetPeaksPerSecond);
+
+        // 优先通过 AstraCore Native 内存级 C ABI 高性能提取音频波形峰值（零子进程、零管道、Direct-to-RAM，支持原生协作取消）
+        token.ThrowIfCancellationRequested();
+        var (extracted, nativeDuration, nativePeaks, nativeErr) = await Task.Run(() =>
+        {
+            var ok = AstraCoreNative.TryExtractWaveformPeaks(
+                mediaPath, SampleRate, (int)samplesPerPeak, MaximumPeaks,
+                out var d, out var p, token, out var err);
+            return (ok, d, p, err);
+        }, token).ConfigureAwait(false);
+
+        if (extracted && nativePeaks.Length > 0)
+        {
+            var effectiveNativeDuration = nativeDuration > 0 ? nativeDuration : (duration > 0 ? duration : 0.001);
+            var waveformData = new WaveformData(effectiveNativeDuration, nativePeaks);
+            await WriteCacheAsync(cachePath, waveformData, token).ConfigureAwait(false);
+            return waveformData;
+        }
+
+        if (!string.IsNullOrWhiteSpace(nativeErr))
+        {
+            Trace.TraceInformation($"[WaveformService] 原生波形计算回退至 FFmpeg CLI: {nativeErr}");
+        }
+
+        var ffmpeg = MediaToolLocator.FindFfmpeg() ??
+                      throw new FileNotFoundException("未找到 FFmpeg。请安装 AstraCore 运行时，或准备兼容的 runtime/tools/ffmpeg。");
 
         var start = new ProcessStartInfo
         {
@@ -190,6 +212,7 @@ internal static class WaveformService
 
     private static async Task<double> ProbeDurationAsync(string mediaPath, CancellationToken token)
     {
+        if (AstraCoreNative.TryProbe(mediaPath, out var nativeProbe)) return nativeProbe.DurationSeconds;
         var ffprobe = MediaToolLocator.FindFfprobe();
         if (ffprobe is null) return 0;
         var start = new ProcessStartInfo

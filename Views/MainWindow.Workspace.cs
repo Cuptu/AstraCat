@@ -244,7 +244,7 @@ public partial class MainWindow
             e.Handled = true;
             return;
         }
-        if (e.Key == Key.A && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        if (e.Key == Key.A && PlatformHelper.HasCommandModifier(e.KeyModifiers))
         {
             WorkspaceTimeline.SelectAllCues();
             WorkspaceSaveStateText.Text = $"已选择全部 {_workspaceCues.Count} 个字幕块";
@@ -252,13 +252,13 @@ public partial class MainWindow
             e.Handled = true;
             return;
         }
-        if (e.Key == Key.C && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        if (e.Key == Key.C && PlatformHelper.HasCommandModifier(e.KeyModifiers))
         {
             CopyWorkspaceCues();
             e.Handled = true;
             return;
         }
-        if (e.Key == Key.X && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        if (e.Key == Key.X && PlatformHelper.HasCommandModifier(e.KeyModifiers))
         {
             CopyWorkspaceCues();
             var selectedIndexes = WorkspaceTimeline.SelectedCueIndexes;
@@ -266,20 +266,20 @@ public partial class MainWindow
             e.Handled = true;
             return;
         }
-        if (e.Key == Key.V && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        if (e.Key == Key.V && PlatformHelper.HasCommandModifier(e.KeyModifiers))
         {
             PasteWorkspaceCues();
             e.Handled = true;
             return;
         }
-        if (e.Key == Key.Z && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        if (e.Key == Key.Z && PlatformHelper.HasCommandModifier(e.KeyModifiers))
         {
             if (e.KeyModifiers.HasFlag(KeyModifiers.Shift)) RedoWorkspaceEdit();
             else UndoWorkspaceEdit();
             e.Handled = true;
             return;
         }
-        if (e.Key == Key.Y && e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        if (e.Key == Key.Y && PlatformHelper.HasCommandModifier(e.KeyModifiers))
         {
             RedoWorkspaceEdit();
             e.Handled = true;
@@ -294,14 +294,14 @@ public partial class MainWindow
             return;
         }
         if (e.Key is Key.Up or Key.Down &&
-            !e.KeyModifiers.HasFlag(KeyModifiers.Control) && !e.KeyModifiers.HasFlag(KeyModifiers.Alt))
+            !PlatformHelper.HasCommandModifier(e.KeyModifiers) && !e.KeyModifiers.HasFlag(KeyModifiers.Alt))
         {
             NavigateWorkspaceCue(e.Key == Key.Down ? 1 : -1);
             e.Handled = true;
             return;
         }
         if (e.Key is Key.Left or Key.Right &&
-            !e.KeyModifiers.HasFlag(KeyModifiers.Control) && !e.KeyModifiers.HasFlag(KeyModifiers.Alt))
+            !PlatformHelper.HasCommandModifier(e.KeyModifiers) && !e.KeyModifiers.HasFlag(KeyModifiers.Alt))
         {
             var frameCount = e.KeyModifiers.HasFlag(KeyModifiers.Shift) ? 5 : 1;
             NudgeWorkspaceByFrames(e.Key == Key.Right ? frameCount : -frameCount);
@@ -324,6 +324,19 @@ public partial class MainWindow
         {
             SetWorkspaceSplitMode(false);
             e.Handled = true;
+            return;
+        }
+        if (e.Key == Key.OemComma && e.KeyModifiers == KeyModifiers.None)
+        {
+            await _workspacePlayer.StepFrameBackwardAsync();
+            e.Handled = true;
+            return;
+        }
+        if (e.Key == Key.OemPeriod && e.KeyModifiers == KeyModifiers.None)
+        {
+            await _workspacePlayer.StepFrameForwardAsync();
+            e.Handled = true;
+            return;
         }
     }
 
@@ -632,6 +645,7 @@ public partial class MainWindow
     {
         _workspaceUndo.Clear();
         _workspaceRedo.Clear();
+        _projectSession.ClearHistory();
         RefreshWorkspaceHistoryButtons();
     }
 
@@ -754,7 +768,7 @@ public partial class MainWindow
         {
             try
             {
-                var savedCues = JsonSerializer.Deserialize<List<WorkspaceAutoSaveCue>>(
+                var savedCues = AotJson.Deserialize<List<WorkspaceAutoSaveCue>>(
                     await File.ReadAllTextAsync(workspaceCuesFile));
                 if (savedCues != null && savedCues.Count > 0)
                 {
@@ -816,7 +830,7 @@ public partial class MainWindow
                 {
                     try
                     {
-                        segments = JsonSerializer.Deserialize<List<SubtitleSegment>>(
+                        segments = AotJson.Deserialize<List<SubtitleSegment>>(
                             File.ReadAllText(translationCachePath)) ?? [];
                     }
                     catch { }
@@ -1122,6 +1136,21 @@ public partial class MainWindow
     private async void WorkspaceForward_OnClick(object? sender, RoutedEventArgs e) =>
         await _workspacePlayer.SeekRelativeAsync(2);
 
+    private async void WorkspaceStepBack_OnClick(object? sender, RoutedEventArgs e) =>
+        await _workspacePlayer.StepFrameBackwardAsync();
+
+    private async void WorkspaceStepForward_OnClick(object? sender, RoutedEventArgs e) =>
+        await _workspacePlayer.StepFrameForwardAsync();
+
+    private async void WorkspaceSpeedCombo_OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (sender is ComboBox combo && combo.SelectedItem is ComboBoxItem item &&
+            double.TryParse(item.Tag?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var speed))
+        {
+            await _workspacePlayer.SetPlaybackSpeedAsync(speed);
+        }
+    }
+
     private async Task SeekWorkspaceAsync(double seconds)
     {
         WorkspaceTimeline.SetPosition(seconds, keepVisible: false);
@@ -1130,7 +1159,6 @@ public partial class MainWindow
 
     private bool _userAdjustedVideoColumnWidth;
     private bool _workspaceTimelineHeightManuallyAdjusted;
-
     private void WorkspaceColumnSplitter_OnDoubleTapped(object? sender, TappedEventArgs e) =>
         AutoFitWorkspaceVideoColumn(resetManual: true);
 
@@ -2364,8 +2392,8 @@ public partial class MainWindow
         var cues = _workspaceCues.Select(cue => new WorkspaceAutoSaveCue(
             cue.Index, cue.StartMilliseconds, cue.EndMilliseconds, cue.Original, cue.Translated,
             cue.TrackIndex, cue.GroupId, cue.GroupName)).ToArray();
-        var cuesJson = JsonSerializer.Serialize(cues, new JsonSerializerOptions { WriteIndented = true });
-        var stateJson = JsonSerializer.Serialize(cues.Select(cue => new WorkspaceCueState
+        var cuesJson = AotJson.Serialize(cues, new JsonSerializerOptions { WriteIndented = true });
+        var stateJson = AotJson.Serialize(cues.Select(cue => new WorkspaceCueState
         {
             Index = cue.Index,
             TrackIndex = cue.TrackIndex,
@@ -2376,27 +2404,24 @@ public partial class MainWindow
         project.SubtitlePath = subtitlePath;
         project.UpdatedAt = DateTimeOffset.Now;
         _workspaceSubtitlePath = subtitlePath;
-        var projectsJson = JsonSerializer.Serialize(_projects, new JsonSerializerOptions { WriteIndented = true });
 
         var srtText = BuildWorkspaceSrt(cues);
         var updatedSegments = ParseSrt(srtText);
-        _projectTranslationSegments.Clear();
-        _projectTranslationSegments.AddRange(updatedSegments);
-        SaveProjectTranslationCache(projectId);
+        var translationCacheJson = AotJson.Serialize(updatedSegments, new JsonSerializerOptions { WriteIndented = true });
 
         await _workspaceAutoSaveGate.WaitAsync();
         try
         {
-            await Task.Run(() =>
-            {
-                Directory.CreateDirectory(directory);
-                WriteTextAtomically(subtitlePath, srtText);
-                WriteTextAtomically(WorkspaceCueStatePath(projectId), stateJson);
-                WriteTextAtomically(WorkspaceCuesPath(projectId), cuesJson);
-                var projectStoreDirectory = Path.GetDirectoryName(ProjectStorePath)!;
-                Directory.CreateDirectory(projectStoreDirectory);
-                WriteTextAtomically(ProjectStorePath, projectsJson);
-            });
+            await ProjectRepository.Shared.CommitProjectRevisionAsync(
+                projectId,
+                _projects,
+                srtText,
+                cuesJson,
+                stateJson,
+                translationCacheJson);
+
+            _projectTranslationSegments.Clear();
+            _projectTranslationSegments.AddRange(updatedSegments);
 
             if (string.Equals(_activeProjectId, projectId, StringComparison.OrdinalIgnoreCase))
             {
@@ -3051,7 +3076,7 @@ public partial class MainWindow
         if (!File.Exists(path)) return;
         try
         {
-            var states = System.Text.Json.JsonSerializer.Deserialize<List<WorkspaceCueState>>(File.ReadAllText(path)) ?? [];
+            var states = AotJson.Deserialize<List<WorkspaceCueState>>(File.ReadAllText(path)) ?? [];
             foreach (var state in states)
             {
                 var cue = _workspaceCues.FirstOrDefault(item => item.Index == state.Index);
@@ -3082,6 +3107,6 @@ public partial class MainWindow
             GroupName = cue.GroupName
         }).ToArray();
         File.WriteAllText(WorkspaceCueStatePath(projectId),
-            System.Text.Json.JsonSerializer.Serialize(state, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+            AotJson.Serialize(state, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
     }
 }

@@ -46,7 +46,8 @@ internal sealed class MpvWidBenchmarkWindow : Window
             Set("keep-open", "yes");
             Set("pause", "no");
             Set("input-default-bindings", "no");
-            Set("osc", "no");
+            // libmpv-only builds may omit the OSC option entirely.
+            _native.SetOptionString(_mpv, "osc", "no");
             Set("osd-bar", "no");
             Set("audio-display", "no");
             Check(_native.Initialize(_mpv), "initialize");

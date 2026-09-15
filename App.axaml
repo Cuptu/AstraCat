@@ -357,59 +357,6 @@
       <Setter Property="Height" Value="7" />
     </Style>
 
-    <Style Selector="ComboBoxItem">
-      <Setter Property="MinHeight" Value="36" />
-      <Setter Property="Height" Value="36" />
-      <Setter Property="Margin" Value="6,2" />
-      <Setter Property="Padding" Value="10,0" />
-      <Setter Property="FontSize" Value="13" />
-      <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Foreground" Value="#18181B" />
-      <Setter Property="Background" Value="Transparent" />
-      <Setter Property="CornerRadius" Value="10" />
-      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-      <Setter Property="Template">
-        <ControlTemplate>
-          <Border x:Name="ItemBackground"
-                  Background="{TemplateBinding Background}"
-                  CornerRadius="{TemplateBinding CornerRadius}"
-                  Padding="{TemplateBinding Padding}">
-            <Border.Transitions>
-              <Transitions>
-                <BrushTransition Property="Background" Duration="0:0:0.12" />
-              </Transitions>
-            </Border.Transitions>
-            <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
-              <ContentPresenter x:Name="PART_ContentPresenter"
-                                Content="{TemplateBinding Content}"
-                                ContentTemplate="{TemplateBinding ContentTemplate}"
-                                VerticalContentAlignment="Center"
-                                TextElement.FontSize="13"
-                                TextElement.FontWeight="SemiBold"
-                                TextElement.Foreground="#18181B" />
-              <icons:MaterialIcon Grid.Column="1" Kind="Check" Width="15" Height="15" Foreground="#2563EB"
-                                  Margin="8,0,4,0"
-                                  HorizontalAlignment="Right" VerticalAlignment="Center"
-                                  IsVisible="{Binding IsSelected, RelativeSource={RelativeSource TemplatedParent}}" />
-            </Grid>
-          </Border>
-        </ControlTemplate>
-      </Setter>
-    </Style>
-    <Style Selector="ComboBoxItem:pointerover /template/ Border#ItemBackground">
-      <Setter Property="Background" Value="#F2F3F5" />
-    </Style>
-    <Style Selector="ComboBoxItem:selected /template/ Border#ItemBackground">
-      <Setter Property="Background" Value="#F4F5F7" />
-    </Style>
-    <Style Selector="ComboBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
-      <Setter Property="TextElement.Foreground" Value="#18181B" />
-      <Setter Property="TextElement.FontWeight" Value="SemiBold" />
-    </Style>
-    <Style Selector="ComboBoxItem:selected:pointerover /template/ Border#ItemBackground">
-      <Setter Property="Background" Value="#EBEDF0" />
-    </Style>
-
     <Style Selector="ComboBox.settingSelect">
       <Setter Property="Height" Value="34" />
       <Setter Property="MinWidth" Value="112" />

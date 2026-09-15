@@ -1,9 +1,9 @@
-﻿<Window x:Class="AstraCat.MainWindow"
+<Window x:Class="AstraCat.MainWindow"
         xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
         xmlns:local="clr-namespace:AstraCat"
-        Title="AstraCaptioner · 小猫做字幕"
+        Title="AstraCat · 小猫做字幕"
         Icon="avares://AstraCat/Assets/Brand/AstraCat.ico"
         Width="1020" Height="680" MinWidth="920" MinHeight="580"
         Background="#F7F7F8"
@@ -168,11 +168,11 @@
 
   <Window.Styles>
     <Style Selector="TextBlock">
-      <Setter Property="FontFamily" Value="Inter, Microsoft YaHei UI" />
+      <Setter Property="FontFamily" Value="{StaticResource AppUiFontFamily}" />
       <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
     </Style>
     <Style Selector="Button">
-      <Setter Property="FontFamily" Value="Inter, Microsoft YaHei UI" />
+      <Setter Property="FontFamily" Value="{StaticResource AppUiFontFamily}" />
       <Setter Property="Cursor" Value="Hand" />
       <Setter Property="HorizontalContentAlignment" Value="Center" />
       <Setter Property="VerticalContentAlignment" Value="Center" />
@@ -2517,7 +2517,7 @@
                                  IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
                                  ScrollViewer.VerticalScrollBarVisibility="Auto"
                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                 FontFamily="Cascadia Mono, Consolas, Microsoft YaHei UI" FontSize="11.5"
+                                 FontFamily="{StaticResource AppCodeFontFamily}" FontSize="11.5"
                                  Padding="16" Background="#171A20" Foreground="#DCE4EE"
                                  BorderBrush="#2B313A" BorderThickness="1" CornerRadius="14" />
                       </Grid>
@@ -2602,7 +2602,7 @@
                           <StackPanel Spacing="6">
                             <TextBlock Text="自定义处理要求" FontSize="12" FontWeight="Bold" />
                             <TextBox x:Name="ProjectProcessingPromptBox" Height="58" Padding="12,8" AcceptsReturn="True"
-                                     CornerRadius="14" TextWrapping="Wrap" VerticalContentAlignment="Top" PlaceholderText="例如：保留 Minecraft 模组名和玩家名原文" />
+                                     CornerRadius="14" TextWrapping="Wrap" VerticalContentAlignment="Top" PlaceholderText="例如：保留专有名词、技术术语和人名原文" />
                           </StackPanel>
                         </Border>
                       </StackPanel>
@@ -2658,7 +2658,7 @@
                         <TextBox x:Name="ProjectProcessingResearchText" Grid.Row="1" Text="尚未生成术语研究摘要。" IsReadOnly="True"
                                  AcceptsReturn="True" TextWrapping="Wrap" ScrollViewer.VerticalScrollBarVisibility="Auto"
                                  Padding="13" Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="14"
-                                 FontFamily="Cascadia Mono, Consolas" FontSize="10.5" />
+                                 FontFamily="{StaticResource AppCodeFontFamily}" FontSize="10.5" />
                       </Grid>
                       <Button x:Name="ProjectProcessingResearchButton" ZIndex="5" Width="34" Height="34" Padding="0"
                               HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-14,-14,0"
@@ -2836,17 +2836,27 @@
                       </Grid>
                       <Border Grid.Row="1" Background="#FFFFFF" BorderBrush="#E1E5EA" BorderThickness="0,1,0,0">
                         <Grid Margin="12,0">
-                          <TextBlock x:Name="WorkspaceCurrentTimeText" Text="00:00.000" Foreground="#242A31" FontFamily="Consolas" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Left" />
-                          <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center" HorizontalAlignment="Center">
-                            <Button Width="30" Height="30" Padding="0" Background="Transparent" Foreground="#59636F" BorderThickness="0" Click="WorkspaceBack_OnClick" ToolTip.Tip="后退 2 秒"><icons:MaterialIcon Kind="Rewind10" Width="17" Height="17" /></Button>
+                          <TextBlock x:Name="WorkspaceCurrentTimeText" Text="00:00.000" Foreground="#242A31" FontFamily="{StaticResource AppCodeFontFamily}" FontSize="11" VerticalAlignment="Center" HorizontalAlignment="Left" />
+                          <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <Button Width="28" Height="28" Padding="0" Background="Transparent" Foreground="#59636F" BorderThickness="0" Click="WorkspaceBack_OnClick" ToolTip.Tip="后退 2 秒"><icons:MaterialIcon Kind="Rewind10" Width="16" Height="16" /></Button>
+                            <Button Width="28" Height="28" Padding="0" Background="Transparent" Foreground="#59636F" BorderThickness="0" Click="WorkspaceStepBack_OnClick" ToolTip.Tip="上一帧 (快捷键 ,)"><icons:MaterialIcon Kind="SkipPrevious" Width="16" Height="16" /></Button>
                             <Button Width="34" Height="34" Padding="0" CornerRadius="17" Background="#3399F3" Foreground="White" BorderThickness="0" Click="WorkspacePlayPause_OnClick"><icons:MaterialIcon x:Name="WorkspacePlayIcon" Kind="Play" Width="18" Height="18" /></Button>
-                            <Button Width="30" Height="30" Padding="0" Background="Transparent" Foreground="#59636F" BorderThickness="0" Click="WorkspaceForward_OnClick" ToolTip.Tip="前进 2 秒"><icons:MaterialIcon Kind="FastForward10" Width="17" Height="17" /></Button>
-                            <Button x:Name="WorkspaceSplitCueButton" Width="30" Height="30" Padding="0" Background="Transparent" Foreground="#59636F" BorderThickness="0" Click="WorkspaceSplitCue_OnClick" ToolTip.Tip="剪刀模式：C 进入，V 退出"><icons:MaterialIcon Kind="ContentCut" Width="17" Height="17" /></Button>
+                            <Button Width="28" Height="28" Padding="0" Background="Transparent" Foreground="#59636F" BorderThickness="0" Click="WorkspaceStepForward_OnClick" ToolTip.Tip="下一帧 (快捷键 .)"><icons:MaterialIcon Kind="SkipNext" Width="16" Height="16" /></Button>
+                            <Button Width="28" Height="28" Padding="0" Background="Transparent" Foreground="#59636F" BorderThickness="0" Click="WorkspaceForward_OnClick" ToolTip.Tip="前进 2 秒"><icons:MaterialIcon Kind="FastForward10" Width="16" Height="16" /></Button>
+                            <Button x:Name="WorkspaceSplitCueButton" Width="28" Height="28" Padding="0" Background="Transparent" Foreground="#59636F" BorderThickness="0" Click="WorkspaceSplitCue_OnClick" ToolTip.Tip="剪刀模式：C 进入，V 退出"><icons:MaterialIcon Kind="ContentCut" Width="16" Height="16" /></Button>
                           </StackPanel>
-                          <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center" HorizontalAlignment="Right">
+                          <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" HorizontalAlignment="Right">
+                            <ComboBox x:Name="WorkspaceSpeedCombo" SelectedIndex="2" Height="24" FontSize="10.5" Padding="5,1" VerticalAlignment="Center" SelectionChanged="WorkspaceSpeedCombo_OnSelectionChanged" ToolTip.Tip="播放倍速">
+                              <ComboBoxItem Content="0.5x" Tag="0.5" />
+                              <ComboBoxItem Content="0.75x" Tag="0.75" />
+                              <ComboBoxItem Content="1.0x" Tag="1.0" />
+                              <ComboBoxItem Content="1.25x" Tag="1.25" />
+                              <ComboBoxItem Content="1.5x" Tag="1.5" />
+                              <ComboBoxItem Content="2.0x" Tag="2.0" />
+                            </ComboBox>
                             <TextBlock x:Name="WorkspacePlaybackStateText" Text="已暂停" Foreground="#6F7883" FontSize="10" />
                             <TextBlock Text="/" Foreground="#C0C5CC" FontSize="10" />
-                            <TextBlock x:Name="WorkspaceDurationText" Text="00:00.000" Foreground="#6F7883" FontFamily="Consolas" FontSize="10" />
+                            <TextBlock x:Name="WorkspaceDurationText" Text="00:00.000" Foreground="#6F7883" FontFamily="{StaticResource AppCodeFontFamily}" FontSize="10" />
                           </StackPanel>
                         </Grid>
                       </Border>
@@ -2934,7 +2944,7 @@
                                   </Border>
 
                                   <!-- Left Column: Timestamp & Duration (High space efficiency) -->
-                                  <TextBlock Grid.Column="1" Text="{Binding StartLabel}" FontFamily="Consolas, monospace"
+                                  <TextBlock Grid.Column="1" Text="{Binding StartLabel}" FontFamily="{StaticResource AppCodeFontFamily}"
                                              FontSize="9.5" FontWeight="Bold" Foreground="{Binding TimeForeground}"
                                              VerticalAlignment="Center" Margin="0,0,7,0" />
 
@@ -2971,7 +2981,7 @@
 
                                   <Border Grid.Column="4" Height="20" Padding="7,0" CornerRadius="10" Background="#F2F4F6"
                                           VerticalAlignment="Center" Margin="0,0,5,0">
-                                    <TextBlock Text="{Binding DurationLabel}" FontFamily="Consolas, monospace" FontSize="8.5"
+                                    <TextBlock Text="{Binding DurationLabel}" FontFamily="{StaticResource AppCodeFontFamily}" FontSize="8.5"
                                                Foreground="#7B8794" VerticalAlignment="Center" />
                                   </Border>
 
@@ -3109,7 +3119,7 @@
                                      BorderThickness="1.5" CornerRadius="0" FontSize="12.5"
                                      TextChanged="WorkspaceCueEditText_OnTextChanged"
                                      KeyDown="WorkspaceCueEditText_OnKeyDown" />
-                            <TextBlock x:Name="WorkspaceCueEditCountText" Grid.Column="1" Text="0" FontFamily="Consolas"
+                            <TextBlock x:Name="WorkspaceCueEditCountText" Grid.Column="1" Text="0" FontFamily="{StaticResource AppCodeFontFamily}"
                                        Foreground="#6E7782" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center" />
                             <Button Grid.Column="2" Width="34" Height="34" Padding="0" CornerRadius="17"
                                     Background="#DDE2E7" Foreground="#52606C" BorderThickness="0"

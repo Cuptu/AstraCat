@@ -58,6 +58,8 @@ public sealed class SubtitleTimelineControl : Control
     private SubtitleStyleDefinition _mainStyle = SubtitleStyleDefinition.MainDefault();
     private SubtitleStyleDefinition _secondaryStyle = SubtitleStyleDefinition.SecondaryDefault();
     private long? _snapGuideMilliseconds;
+    private IReadOnlyList<double> _sceneCuts = Array.Empty<double>();
+    public IReadOnlyList<double> SceneCuts => _sceneCuts;
     private int _hoveredIndex = -1;
     private bool _splitMode;
     private Cursor? _splitCursor;
@@ -642,6 +644,12 @@ public sealed class SubtitleTimelineControl : Control
             ViewportChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    public void SetSceneCuts(IReadOnlyList<double>? sceneCuts)
+    {
+        _sceneCuts = sceneCuts ?? Array.Empty<double>();
+        InvalidateVisual();
+    }
+
     public void SetSelectedIndex(int index)
     {
         _selectedIndex = index;
@@ -723,6 +731,7 @@ public sealed class SubtitleTimelineControl : Control
             {
                 DrawTrackRows(context, bounds);
                 if (_showWaveform) DrawWaveform(context, bounds);
+                DrawSceneCutMarkers(context, bounds);
                 DrawCueBlocks(context, bounds);
                 DrawMarqueeSelection(context);
                 if (_dragMode == DragMode.None) DrawConflictMarkers(context);
@@ -735,6 +744,19 @@ public sealed class SubtitleTimelineControl : Control
         catch
         {
             // Safeguard against render loop crash
+        }
+    }
+
+    private void DrawSceneCutMarkers(DrawingContext context, Rect bounds)
+    {
+        if (_sceneCuts == null || _sceneCuts.Count == 0) return;
+        var pen = CachedPen("#45FF7043", 1.0);
+        foreach (var cut in _sceneCuts)
+        {
+            var x = TimeToX(cut);
+            if (x > bounds.Width) continue;
+            if (x < TrackHeaderWidth) continue;
+            context.DrawLine(pen, new Point(x, LaneTop), new Point(x, LaneTop + ViewportTrackHeight));
         }
     }
 
@@ -782,6 +804,19 @@ public sealed class SubtitleTimelineControl : Control
             if (!major) continue;
             var label = TimeSpan.FromSeconds(Math.Max(0, t)).ToString(@"mm\:ss");
             DrawFixedText(context, label, new Point(x + 4, 3), 10, "#68717D", 54);
+        }
+
+        // Scene cuts indicators on ruler
+        if (_sceneCuts != null && _sceneCuts.Count > 0)
+        {
+            var cutPen = CachedPen("#FF7043", 1.8);
+            foreach (var cut in _sceneCuts)
+            {
+                var x = TimeToX(cut);
+                if (x > bounds.Width) continue;
+                if (x < TrackHeaderWidth) continue;
+                context.DrawLine(cutPen, new Point(x, 14), new Point(x, 30));
+            }
         }
     }
 
@@ -1162,7 +1197,7 @@ public sealed class SubtitleTimelineControl : Control
             return;
         }
 
-        if (e.KeyModifiers.HasFlag(KeyModifiers.Control))
+        if (PlatformHelper.HasCommandModifier(e.KeyModifiers))
         {
             if (!_selectedIndexes.Add(hit)) _selectedIndexes.Remove(hit);
             _selectedIndex = _selectedIndexes.Contains(hit) ? hit : _selectedIndexes.FirstOrDefault(-1);
@@ -1211,6 +1246,7 @@ public sealed class SubtitleTimelineControl : Control
         _dragSnapTargets = _cues.Where((_, index) => !movingIndexes.Contains(index))
             .SelectMany(item => new[] { item.StartMilliseconds, item.EndMilliseconds })
             .Append((long)Math.Round(_positionSeconds * 1000))
+            .Concat(_sceneCuts.Select(c => (long)Math.Round(c * 1000)))
             .Distinct().OrderBy(value => value).ToArray();
         _snapGuideMilliseconds = null;
         e.Pointer.Capture(this);
@@ -1354,7 +1390,7 @@ public sealed class SubtitleTimelineControl : Control
         _marqueeOriginTimeSeconds = XToTime(_marqueeOrigin.X);
         _marqueeOriginContentY = _marqueeOrigin.Y + _trackVerticalOffset;
         _marqueeBaseSelection.Clear();
-        if (_marqueeModifiers.HasFlag(KeyModifiers.Control))
+        if (PlatformHelper.HasCommandModifier(_marqueeModifiers))
             _marqueeBaseSelection.UnionWith(_selectedIndexes);
         else
             _selectedIndexes.Clear();
@@ -1704,24 +1740,6 @@ public sealed class SubtitleTimelineControl : Control
             e.Handled = true;
             return;
         }
-        if (_dragMode == DragMode.VScroll)
-        {
-            _dragMode = DragMode.None;
-            e.Pointer.Capture(null);
-            InvalidateVisual();
-            e.Handled = true;
-            return;
-        }
-        if (_dragMode == DragMode.Scrub)
-        {
-            UpdateScrub(e.GetPosition(this).X, forceDispatch: true);
-            _dragMode = DragMode.None;
-            e.Pointer.Capture(null);
-            InvalidateVisual();
-            e.Handled = true;
-            return;
-        }
-        if (_dragMode == DragMode.None || _selectedIndex < 0 || _selectedIndex >= _cues.Count) return;
         if (_dragMode == DragMode.VScroll)
         {
             _dragMode = DragMode.None;
