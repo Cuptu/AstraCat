@@ -1115,4 +1115,116 @@ public sealed class MediaExportService
         var lines = error.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
         return string.Join(Environment.NewLine, lines.TakeLast(Math.Min(8, lines.Length)));
     }
+
+    public static async Task<bool> TrimMediaAsync(
+        string inputPath,
+        string outputPath,
+        double startSeconds,
+        double durationSeconds,
+        bool streamCopy = true,
+        CancellationToken cancellationToken = default)
+    {
+        if (AstraCoreNative.TryTrimMedia(inputPath, outputPath, startSeconds, durationSeconds, streamCopy, cancellationToken, out _))
+        {
+            return true;
+        }
+
+        var ffmpeg = MediaToolLocator.FindFfmpeg();
+        if (ffmpeg is null || !File.Exists(inputPath)) return false;
+
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outputPath))!);
+        var info = new ProcessStartInfo
+        {
+            FileName = ffmpeg,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        var args = new List<string> { "-hide_banner", "-y", "-ss", startSeconds.ToString("F3", CultureInfo.InvariantCulture), "-i", inputPath };
+        if (durationSeconds > 0)
+        {
+            args.AddRange(["-t", durationSeconds.ToString("F3", CultureInfo.InvariantCulture)]);
+        }
+        if (streamCopy)
+        {
+            args.AddRange(["-c", "copy"]);
+        }
+        args.Add(outputPath);
+        foreach (var arg in args) info.ArgumentList.Add(arg);
+
+        using var process = Process.Start(info);
+        if (process is null) return false;
+        using var reg = cancellationToken.Register(() => TryTerminate(process));
+        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+        return process.ExitCode == 0 && File.Exists(outputPath);
+    }
+
+    public static async Task<bool> ChangeAudioSpeedAsync(
+        string inputPath,
+        string outputWavPath,
+        double speedFactor,
+        CancellationToken cancellationToken = default)
+    {
+        if (AstraCoreNative.TryChangeAudioSpeed(inputPath, outputWavPath, speedFactor, cancellationToken, out _))
+        {
+            return true;
+        }
+
+        var ffmpeg = MediaToolLocator.FindFfmpeg();
+        if (ffmpeg is null || !File.Exists(inputPath)) return false;
+
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outputWavPath))!);
+        var info = new ProcessStartInfo
+        {
+            FileName = ffmpeg,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        foreach (var arg in new[]
+        {
+            "-hide_banner", "-y", "-i", inputPath,
+            "-filter:a", $"atempo={speedFactor.ToString("0.00", CultureInfo.InvariantCulture)}",
+            "-ar", "16000", "-ac", "1", outputWavPath
+        }) info.ArgumentList.Add(arg);
+
+        using var process = Process.Start(info);
+        if (process is null) return false;
+        using var reg = cancellationToken.Register(() => TryTerminate(process));
+        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+        return process.ExitCode == 0 && File.Exists(outputWavPath);
+    }
+
+    public static async Task<bool> ExtractAudioStreamAsync(
+        string inputMedia,
+        string outputAudio,
+        int streamIndex = -1,
+        CancellationToken cancellationToken = default)
+    {
+        if (AstraCoreNative.TryExtractAudioStream(inputMedia, outputAudio, streamIndex, out _))
+        {
+            return true;
+        }
+
+        var ffmpeg = MediaToolLocator.FindFfmpeg();
+        if (ffmpeg is null || !File.Exists(inputMedia)) return false;
+
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(outputAudio))!);
+        var info = new ProcessStartInfo
+        {
+            FileName = ffmpeg,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        var mapArg = streamIndex >= 0 ? $"0:{streamIndex}" : "0:a:0";
+        foreach (var arg in new[] { "-hide_banner", "-y", "-i", inputMedia, "-map", mapArg, "-c", "copy", outputAudio })
+            info.ArgumentList.Add(arg);
+
+        using var process = Process.Start(info);
+        if (process is null) return false;
+        using var reg = cancellationToken.Register(() => TryTerminate(process));
+        await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+        return process.ExitCode == 0 && File.Exists(outputAudio);
+    }
 }

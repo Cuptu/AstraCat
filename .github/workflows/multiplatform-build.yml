@@ -39,6 +39,7 @@ jobs:
             libavcodec-dev \
             libavutil-dev \
             libswresample-dev \
+            libavfilter-dev \
             libmpv-dev \
             ffmpeg \
             libegl1-mesa-dev \

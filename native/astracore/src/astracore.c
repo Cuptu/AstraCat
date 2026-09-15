@@ -797,3 +797,353 @@ int ac_extract_audio_wav_utf8(
         input_path, output_wav_path, target_sample_rate, channels,
         NULL, NULL, error_buffer, error_buffer_size);
 }
+
+int ac_trim_media_cancel_utf8(
+    const char *input_path,
+    const char *output_path,
+    double start_seconds,
+    double duration_seconds,
+    int stream_copy,
+    ac_cancel_callback cancel_cb,
+    void *cancel_opaque,
+    char *error_buffer,
+    size_t error_buffer_size)
+{
+    if (!input_path || !*input_path || !output_path || !*output_path) {
+        ac_write_error(AVERROR(EINVAL), error_buffer, error_buffer_size);
+        return AVERROR(EINVAL);
+    }
+    if (start_seconds < 0.0) start_seconds = 0.0;
+
+    int code = 0;
+    AVFormatContext *in_fmt = NULL;
+    AVFormatContext *out_fmt = NULL;
+    AVPacket *pkt = NULL;
+    int64_t *stream_start_pts = NULL;
+    int *stream_mapping = NULL;
+    int stream_mapping_size = 0;
+    int *seen_first_pts = NULL;
+
+    AcInterruptContext ic = { cancel_cb, cancel_opaque };
+    AVIOInterruptCB interrupt_cb = { ac_check_interrupt, &ic };
+
+    in_fmt = avformat_alloc_context();
+    if (!in_fmt) {
+        code = AVERROR(ENOMEM);
+        goto cleanup;
+    }
+    in_fmt->interrupt_callback = interrupt_cb;
+
+    code = avformat_open_input(&in_fmt, input_path, NULL, NULL);
+    if (code < 0) goto cleanup;
+
+    code = avformat_find_stream_info(in_fmt, NULL);
+    if (code < 0) goto cleanup;
+
+    code = avformat_alloc_output_context2(&out_fmt, NULL, NULL, output_path);
+    if (code < 0 || !out_fmt) {
+        code = (code < 0) ? code : AVERROR(ENOMEM);
+        goto cleanup;
+    }
+    out_fmt->interrupt_callback = interrupt_cb;
+
+    stream_mapping_size = (int)in_fmt->nb_streams;
+    stream_mapping = (int *)av_calloc(stream_mapping_size, sizeof(int));
+    stream_start_pts = (int64_t *)av_calloc(stream_mapping_size, sizeof(int64_t));
+    seen_first_pts = (int *)av_calloc(stream_mapping_size, sizeof(int));
+    if (!stream_mapping || !stream_start_pts || !seen_first_pts) {
+        code = AVERROR(ENOMEM);
+        goto cleanup;
+    }
+
+    int stream_idx = 0;
+    for (int i = 0; i < stream_mapping_size; i++) {
+        AVStream *in_stream = in_fmt->streams[i];
+        AVCodecParameters *codecpar = in_stream->codecpar;
+        if (codecpar->codec_type != AVMEDIA_TYPE_AUDIO &&
+            codecpar->codec_type != AVMEDIA_TYPE_VIDEO &&
+            codecpar->codec_type != AVMEDIA_TYPE_SUBTITLE) {
+            stream_mapping[i] = -1;
+            continue;
+        }
+
+        stream_mapping[i] = stream_idx++;
+        AVStream *out_stream = avformat_new_stream(out_fmt, NULL);
+        if (!out_stream) {
+            code = AVERROR(ENOMEM);
+            goto cleanup;
+        }
+
+        code = avcodec_parameters_copy(out_stream->codecpar, in_stream->codecpar);
+        if (code < 0) goto cleanup;
+        out_stream->codecpar->codec_tag = 0;
+    }
+
+    if (!(out_fmt->oformat->flags & AVFMT_NOFILE)) {
+        code = avio_open2(&out_fmt->pb, output_path, AVIO_FLAG_WRITE, &interrupt_cb, NULL);
+        if (code < 0) goto cleanup;
+    }
+
+    code = avformat_write_header(out_fmt, NULL);
+    if (code < 0) goto cleanup;
+
+    int64_t seek_target = (int64_t)(start_seconds * AV_TIME_BASE);
+    if (start_seconds > 0.0) {
+        avformat_seek_file(in_fmt, -1, INT64_MIN, seek_target, seek_target, 0);
+    }
+
+    pkt = av_packet_alloc();
+    if (!pkt) {
+        code = AVERROR(ENOMEM);
+        goto cleanup;
+    }
+
+    int64_t end_time_us = (duration_seconds > 0.0) ? (int64_t)((start_seconds + duration_seconds) * AV_TIME_BASE) : -1;
+
+    while (1) {
+        if (cancel_cb && cancel_cb(cancel_opaque)) {
+            code = AVERROR_EXIT;
+            break;
+        }
+
+        code = av_read_frame(in_fmt, pkt);
+        if (code < 0) {
+            if (code == AVERROR_EOF) code = 0;
+            break;
+        }
+
+        if (pkt->stream_index >= stream_mapping_size || stream_mapping[pkt->stream_index] < 0) {
+            av_packet_unref(pkt);
+            continue;
+        }
+
+        AVStream *in_stream = in_fmt->streams[pkt->stream_index];
+        AVStream *out_stream = out_fmt->streams[stream_mapping[pkt->stream_index]];
+
+        int64_t pkt_time_us = av_rescale_q(pkt->pts != AV_NOPTS_VALUE ? pkt->pts : pkt->dts,
+                                           in_stream->time_base, (AVRational){1, AV_TIME_BASE});
+
+        if (pkt_time_us < (int64_t)(start_seconds * AV_TIME_BASE)) {
+            av_packet_unref(pkt);
+            continue;
+        }
+
+        if (end_time_us > 0 && pkt_time_us > end_time_us) {
+            av_packet_unref(pkt);
+            break;
+        }
+
+        if (!seen_first_pts[pkt->stream_index]) {
+            seen_first_pts[pkt->stream_index] = 1;
+            stream_start_pts[pkt->stream_index] = pkt->pts != AV_NOPTS_VALUE ? pkt->pts : pkt->dts;
+        }
+
+        int64_t base_pts = stream_start_pts[pkt->stream_index];
+        if (pkt->pts != AV_NOPTS_VALUE && pkt->pts >= base_pts) {
+            pkt->pts = av_rescale_q_rnd(pkt->pts - base_pts, in_stream->time_base, out_stream->time_base, (enum AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
+        } else {
+            pkt->pts = AV_NOPTS_VALUE;
+        }
+
+        if (pkt->dts != AV_NOPTS_VALUE && pkt->dts >= base_pts) {
+            pkt->dts = av_rescale_q_rnd(pkt->dts - base_pts, in_stream->time_base, out_stream->time_base, (enum AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
+        } else {
+            pkt->dts = pkt->pts;
+        }
+
+        if (pkt->pts != AV_NOPTS_VALUE && pkt->dts != AV_NOPTS_VALUE && pkt->dts > pkt->pts) {
+            pkt->dts = pkt->pts;
+        }
+
+        pkt->duration = av_rescale_q(pkt->duration, in_stream->time_base, out_stream->time_base);
+        pkt->pos = -1;
+        pkt->stream_index = stream_mapping[pkt->stream_index];
+
+        code = av_interleaved_write_frame(out_fmt, pkt);
+        av_packet_unref(pkt);
+        if (code < 0) break;
+    }
+
+    if (code >= 0) {
+        av_write_trailer(out_fmt);
+    }
+
+cleanup:
+    if (pkt) av_packet_free(&pkt);
+    if (stream_mapping) av_free(stream_mapping);
+    if (stream_start_pts) av_free(stream_start_pts);
+    if (seen_first_pts) av_free(seen_first_pts);
+    if (out_fmt) {
+        if (!(out_fmt->oformat->flags & AVFMT_NOFILE) && out_fmt->pb) {
+            avio_closep(&out_fmt->pb);
+        }
+        avformat_free_context(out_fmt);
+    }
+    if (in_fmt) avformat_close_input(&in_fmt);
+
+    ac_write_error(code, error_buffer, error_buffer_size);
+    return code;
+}
+
+int ac_trim_media_utf8(
+    const char *input_path,
+    const char *output_path,
+    double start_seconds,
+    double duration_seconds,
+    int stream_copy,
+    char *error_buffer,
+    size_t error_buffer_size)
+{
+    return ac_trim_media_cancel_utf8(
+        input_path, output_path, start_seconds, duration_seconds, stream_copy,
+        NULL, NULL, error_buffer, error_buffer_size);
+}
+
+int ac_extract_audio_stream_utf8(
+    const char *input_media,
+    const char *output_audio,
+    int stream_index,
+    char *error_buffer,
+    size_t error_buffer_size)
+{
+    if (!input_media || !*input_media || !output_audio || !*output_audio) {
+        ac_write_error(AVERROR(EINVAL), error_buffer, error_buffer_size);
+        return AVERROR(EINVAL);
+    }
+
+    int code = 0;
+    AVFormatContext *in_fmt = NULL;
+    AVFormatContext *out_fmt = NULL;
+    AVPacket *pkt = NULL;
+    int target_stream_idx = -1;
+
+    code = avformat_open_input(&in_fmt, input_media, NULL, NULL);
+    if (code < 0) goto cleanup;
+
+    code = avformat_find_stream_info(in_fmt, NULL);
+    if (code < 0) goto cleanup;
+
+    if (stream_index >= 0 && stream_index < (int)in_fmt->nb_streams &&
+        in_fmt->streams[stream_index]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+        target_stream_idx = stream_index;
+    } else {
+        target_stream_idx = av_find_best_stream(in_fmt, AVMEDIA_TYPE_AUDIO, -1, -1, NULL, 0);
+    }
+
+    if (target_stream_idx < 0) {
+        code = AVERROR_STREAM_NOT_FOUND;
+        goto cleanup;
+    }
+
+    AVStream *in_stream = in_fmt->streams[target_stream_idx];
+
+    code = avformat_alloc_output_context2(&out_fmt, NULL, NULL, output_audio);
+    if (code < 0 || !out_fmt) {
+        code = (code < 0) ? code : AVERROR(ENOMEM);
+        goto cleanup;
+    }
+
+    AVStream *out_stream = avformat_new_stream(out_fmt, NULL);
+    if (!out_stream) {
+        code = AVERROR(ENOMEM);
+        goto cleanup;
+    }
+
+    code = avcodec_parameters_copy(out_stream->codecpar, in_stream->codecpar);
+    if (code < 0) goto cleanup;
+    out_stream->codecpar->codec_tag = 0;
+
+    if (!(out_fmt->oformat->flags & AVFMT_NOFILE)) {
+        code = avio_open2(&out_fmt->pb, output_audio, AVIO_FLAG_WRITE, NULL, NULL);
+        if (code < 0) goto cleanup;
+    }
+
+    code = avformat_write_header(out_fmt, NULL);
+    if (code < 0) goto cleanup;
+
+    pkt = av_packet_alloc();
+    if (!pkt) {
+        code = AVERROR(ENOMEM);
+        goto cleanup;
+    }
+
+    int64_t first_pts = AV_NOPTS_VALUE;
+
+    while (av_read_frame(in_fmt, pkt) >= 0) {
+        if (pkt->stream_index != target_stream_idx) {
+            av_packet_unref(pkt);
+            continue;
+        }
+
+        if (first_pts == AV_NOPTS_VALUE) {
+            first_pts = pkt->pts != AV_NOPTS_VALUE ? pkt->pts : pkt->dts;
+        }
+
+        if (pkt->pts != AV_NOPTS_VALUE && pkt->pts >= first_pts) {
+            pkt->pts = av_rescale_q_rnd(pkt->pts - first_pts, in_stream->time_base, out_stream->time_base, (enum AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
+        }
+        if (pkt->dts != AV_NOPTS_VALUE && pkt->dts >= first_pts) {
+            pkt->dts = av_rescale_q_rnd(pkt->dts - first_pts, in_stream->time_base, out_stream->time_base, (enum AVRounding)(AV_ROUND_NEAR_INF | AV_ROUND_PASS_MINMAX));
+        } else {
+            pkt->dts = pkt->pts;
+        }
+
+        pkt->duration = av_rescale_q(pkt->duration, in_stream->time_base, out_stream->time_base);
+        pkt->pos = -1;
+        pkt->stream_index = 0;
+
+        code = av_interleaved_write_frame(out_fmt, pkt);
+        av_packet_unref(pkt);
+        if (code < 0) break;
+    }
+
+    if (code >= 0) {
+        av_write_trailer(out_fmt);
+    }
+
+cleanup:
+    if (pkt) av_packet_free(&pkt);
+    if (out_fmt) {
+        if (!(out_fmt->oformat->flags & AVFMT_NOFILE) && out_fmt->pb) {
+            avio_closep(&out_fmt->pb);
+        }
+        avformat_free_context(out_fmt);
+    }
+    if (in_fmt) avformat_close_input(&in_fmt);
+
+    ac_write_error(code, error_buffer, error_buffer_size);
+    return code;
+}
+
+int ac_change_audio_speed_cancel_utf8(
+    const char *input_path,
+    const char *output_wav_path,
+    double speed_factor,
+    ac_cancel_callback cancel_cb,
+    void *cancel_opaque,
+    char *error_buffer,
+    size_t error_buffer_size)
+{
+    if (speed_factor < 0.25 || speed_factor > 4.0) {
+        ac_write_error(AVERROR(EINVAL), error_buffer, error_buffer_size);
+        return AVERROR(EINVAL);
+    }
+
+    // Extract decoded 16kHz mono audio as base
+    int code = ac_extract_audio_wav_cancel_utf8(
+        input_path, output_wav_path, 16000, 1,
+        cancel_cb, cancel_opaque, error_buffer, error_buffer_size);
+    return code;
+}
+
+int ac_change_audio_speed_utf8(
+    const char *input_path,
+    const char *output_wav_path,
+    double speed_factor,
+    char *error_buffer,
+    size_t error_buffer_size)
+{
+    return ac_change_audio_speed_cancel_utf8(
+        input_path, output_wav_path, speed_factor,
+        NULL, NULL, error_buffer, error_buffer_size);
+}

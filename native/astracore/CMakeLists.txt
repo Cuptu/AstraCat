@@ -11,7 +11,8 @@ pkg_check_modules(LIBAV REQUIRED IMPORTED_TARGET
     libavformat
     libavcodec
     libavutil
-    libswresample)
+    libswresample
+    libavfilter)
 
 add_library(AstraCore.Native SHARED src/astracore.c)
 target_compile_definitions(AstraCore.Native PRIVATE ASTRACORE_BUILD)
@@ -41,16 +42,25 @@ include(CTest)
 if(BUILD_TESTING)
     add_executable(astracore_probe_smoke tests/probe_smoke.c)
     target_link_libraries(astracore_probe_smoke PRIVATE AstraCore.Native)
+    add_executable(astracore_test_editing tests/test_editing.c)
+    target_link_libraries(astracore_test_editing PRIVATE AstraCore.Native)
     if(APPLE)
         set_target_properties(astracore_probe_smoke PROPERTIES
+            INSTALL_RPATH "@executable_path"
+            BUILD_WITH_INSTALL_RPATH TRUE)
+        set_target_properties(astracore_test_editing PROPERTIES
             INSTALL_RPATH "@executable_path"
             BUILD_WITH_INSTALL_RPATH TRUE)
     elseif(UNIX)
         set_target_properties(astracore_probe_smoke PROPERTIES
             INSTALL_RPATH "$ORIGIN"
             BUILD_WITH_INSTALL_RPATH TRUE)
+        set_target_properties(astracore_test_editing PROPERTIES
+            INSTALL_RPATH "$ORIGIN"
+            BUILD_WITH_INSTALL_RPATH TRUE)
     endif()
     add_test(NAME astracore_probe_invalid_path COMMAND astracore_probe_smoke)
+    add_test(NAME astracore_editing_tests COMMAND astracore_test_editing)
 endif()
 
 install(TARGETS AstraCore.Native

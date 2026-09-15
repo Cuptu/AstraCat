@@ -112,7 +112,7 @@ pushd "$build_root/ffmpeg" >/dev/null
     --enable-decoder=h264,hevc,av1,libdav1d,vp8,vp9,mpeg2video,mpeg4,mjpeg,png,aac,mp3,flac,opus,vorbis,alac,wmav1,wmav2,wmapro,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,ass,ssa,srt,subrip,webvtt,movtext \
     --enable-encoder=libx264,libx265,libsvtav1,aac,pcm_s16le,png,ass,ssa,srt,subrip,webvtt,movtext,h264_nvenc,hevc_nvenc,av1_nvenc,h264_qsv,hevc_qsv,av1_qsv,h264_amf,hevc_amf,av1_amf \
     --enable-parser=h264,hevc,av1,vp8,vp9,mpeg4video,mpegvideo,aac,mpegaudio,flac,opus,vorbis \
-    --enable-filter=aformat,aresample,asetpts,atrim,anull,format,fps,null,scale,setpts,subtitles,trim \
+    --enable-filter=aformat,aresample,asetpts,atrim,anull,atempo,volume,format,fps,null,scale,setpts,subtitles,trim \
     --enable-bsf=aac_adtstoasc,av1_frame_merge,av1_metadata,h264_mp4toannexb,hevc_mp4toannexb,vp9_superframe \
     --enable-hwaccel=h264_d3d11va,h264_d3d11va2,hevc_d3d11va,hevc_d3d11va2,av1_d3d11va,av1_d3d11va2,vp9_d3d11va,vp9_d3d11va2,mpeg2_d3d11va,mpeg2_d3d11va2,h264_dxva2,hevc_dxva2,av1_dxva2,vp9_dxva2,mpeg2_dxva2 \
     --disable-libbluray --disable-libdvdnav --disable-libdvdread \

@@ -5,7 +5,7 @@ namespace AstraCat;
 internal sealed class AstraCoreNative
 {
     private const uint MinSupportedAbi = 1;
-    private const uint MaxSupportedAbi = 3;
+    private const uint MaxSupportedAbi = 4;
     private static readonly Lazy<AstraCoreNative?> Shared = new(Create);
 
     [StructLayout(LayoutKind.Sequential)]
@@ -61,6 +61,33 @@ internal sealed class AstraCoreNative
         CancelCallbackDelegate? cancelCb, IntPtr cancelOpaque,
         IntPtr error, nuint errorSize);
 
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int ChangeAudioSpeedDelegate(
+        IntPtr inputPath, IntPtr outputWavPath, double speedFactor,
+        IntPtr error, nuint errorSize);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int ChangeAudioSpeedCancelDelegate(
+        IntPtr inputPath, IntPtr outputWavPath, double speedFactor,
+        CancelCallbackDelegate? cancelCb, IntPtr cancelOpaque,
+        IntPtr error, nuint errorSize);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int TrimMediaDelegate(
+        IntPtr inputPath, IntPtr outputPath, double startSeconds, double durationSeconds, int streamCopy,
+        IntPtr error, nuint errorSize);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int TrimMediaCancelDelegate(
+        IntPtr inputPath, IntPtr outputPath, double startSeconds, double durationSeconds, int streamCopy,
+        CancelCallbackDelegate? cancelCb, IntPtr cancelOpaque,
+        IntPtr error, nuint errorSize);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    private delegate int ExtractAudioStreamDelegate(
+        IntPtr inputMedia, IntPtr outputAudio, int streamIndex,
+        IntPtr error, nuint errorSize);
+
     private readonly ProbeDelegate? _probe;
     private readonly ProbeCancelDelegate? _probeCancel;
     private readonly CheckEncoderDelegate? _checkEncoder;
@@ -68,6 +95,11 @@ internal sealed class AstraCoreNative
     private readonly ExtractWaveformPeaksCancelDelegate? _extractWaveformCancel;
     private readonly ExtractAudioWavDelegate? _extractWav;
     private readonly ExtractAudioWavCancelDelegate? _extractWavCancel;
+    private readonly ChangeAudioSpeedDelegate? _changeSpeed;
+    private readonly ChangeAudioSpeedCancelDelegate? _changeSpeedCancel;
+    private readonly TrimMediaDelegate? _trimMedia;
+    private readonly TrimMediaCancelDelegate? _trimMediaCancel;
+    private readonly ExtractAudioStreamDelegate? _extractAudioStream;
 
     private AstraCoreNative(IntPtr library)
     {
@@ -85,6 +117,14 @@ internal sealed class AstraCoreNative
 
         _extractWavCancel = TryBind<ExtractAudioWavCancelDelegate>(library, "ac_extract_audio_wav_cancel_utf8");
         if (_extractWavCancel is null) _extractWav = TryBind<ExtractAudioWavDelegate>(library, "ac_extract_audio_wav_utf8");
+
+        _changeSpeedCancel = TryBind<ChangeAudioSpeedCancelDelegate>(library, "ac_change_audio_speed_cancel_utf8");
+        if (_changeSpeedCancel is null) _changeSpeed = TryBind<ChangeAudioSpeedDelegate>(library, "ac_change_audio_speed_utf8");
+
+        _trimMediaCancel = TryBind<TrimMediaCancelDelegate>(library, "ac_trim_media_cancel_utf8");
+        if (_trimMediaCancel is null) _trimMedia = TryBind<TrimMediaDelegate>(library, "ac_trim_media_utf8");
+
+        _extractAudioStream = TryBind<ExtractAudioStreamDelegate>(library, "ac_extract_audio_stream_utf8");
     }
 
     public static bool TryProbe(string path, out MediaProbeInfo result) =>
@@ -288,6 +328,178 @@ internal sealed class AstraCoreNative
             {
                 errorMessage = Marshal.PtrToStringUTF8(errorPointer);
                 if (string.IsNullOrWhiteSpace(errorMessage)) errorMessage = $"音频抽取返回错误码 {code}";
+                return false;
+            }
+
+            return true;
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(errorPointer);
+            Marshal.FreeCoTaskMem(outputPointer);
+            Marshal.FreeCoTaskMem(inputPointer);
+        }
+    }
+
+    public static bool TryChangeAudioSpeed(
+        string inputPath,
+        string outputWavPath,
+        double speedFactor) =>
+        TryChangeAudioSpeed(inputPath, outputWavPath, speedFactor, CancellationToken.None, out _);
+
+    public static bool TryChangeAudioSpeed(
+        string inputPath,
+        string outputWavPath,
+        double speedFactor,
+        CancellationToken cancellationToken,
+        out string? errorMessage)
+    {
+        errorMessage = null;
+        var native = Shared.Value;
+        if (native is null || string.IsNullOrWhiteSpace(inputPath) || string.IsNullOrWhiteSpace(outputWavPath))
+        {
+            errorMessage = native is null ? "AstraCore 原生库未加载" : "路径参数无效";
+            return false;
+        }
+
+        if (speedFactor < 0.25 || speedFactor > 4.0)
+        {
+            errorMessage = "倍速参数必须在 0.25 到 4.0 之间";
+            return false;
+        }
+
+        var inputPointer = Marshal.StringToCoTaskMemUTF8(inputPath);
+        var outputPointer = Marshal.StringToCoTaskMemUTF8(outputWavPath);
+        var errorPointer = Marshal.AllocHGlobal(1024);
+        try
+        {
+            int code;
+            if (native._changeSpeedCancel is not null)
+            {
+                CancelCallbackDelegate cancelDelegate = _ => cancellationToken.IsCancellationRequested ? 1 : 0;
+                code = native._changeSpeedCancel(
+                    inputPointer, outputPointer, speedFactor,
+                    cancelDelegate, IntPtr.Zero, errorPointer, 1024);
+            }
+            else if (native._changeSpeed is not null)
+            {
+                code = native._changeSpeed(
+                    inputPointer, outputPointer, speedFactor, errorPointer, 1024);
+            }
+            else
+            {
+                errorMessage = "未找到音频倍速处理原生入口";
+                return false;
+            }
+
+            if (code != 0)
+            {
+                errorMessage = Marshal.PtrToStringUTF8(errorPointer);
+                if (string.IsNullOrWhiteSpace(errorMessage)) errorMessage = $"音频倍速返回错误码 {code}";
+                return false;
+            }
+
+            return true;
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(errorPointer);
+            Marshal.FreeCoTaskMem(outputPointer);
+            Marshal.FreeCoTaskMem(inputPointer);
+        }
+    }
+
+    public static bool TryTrimMedia(
+        string inputPath,
+        string outputPath,
+        double startSeconds,
+        double durationSeconds,
+        bool streamCopy = true) =>
+        TryTrimMedia(inputPath, outputPath, startSeconds, durationSeconds, streamCopy, CancellationToken.None, out _);
+
+    public static bool TryTrimMedia(
+        string inputPath,
+        string outputPath,
+        double startSeconds,
+        double durationSeconds,
+        bool streamCopy,
+        CancellationToken cancellationToken,
+        out string? errorMessage)
+    {
+        errorMessage = null;
+        var native = Shared.Value;
+        if (native is null || string.IsNullOrWhiteSpace(inputPath) || string.IsNullOrWhiteSpace(outputPath))
+        {
+            errorMessage = native is null ? "AstraCore 原生库未加载" : "路径参数无效";
+            return false;
+        }
+
+        var inputPointer = Marshal.StringToCoTaskMemUTF8(inputPath);
+        var outputPointer = Marshal.StringToCoTaskMemUTF8(outputPath);
+        var errorPointer = Marshal.AllocHGlobal(1024);
+        try
+        {
+            int code;
+            int copyFlag = streamCopy ? 1 : 0;
+            if (native._trimMediaCancel is not null)
+            {
+                CancelCallbackDelegate cancelDelegate = _ => cancellationToken.IsCancellationRequested ? 1 : 0;
+                code = native._trimMediaCancel(
+                    inputPointer, outputPointer, startSeconds, durationSeconds, copyFlag,
+                    cancelDelegate, IntPtr.Zero, errorPointer, 1024);
+            }
+            else if (native._trimMedia is not null)
+            {
+                code = native._trimMedia(
+                    inputPointer, outputPointer, startSeconds, durationSeconds, copyFlag, errorPointer, 1024);
+            }
+            else
+            {
+                errorMessage = "未找到媒体裁剪原生入口";
+                return false;
+            }
+
+            if (code != 0)
+            {
+                errorMessage = Marshal.PtrToStringUTF8(errorPointer);
+                if (string.IsNullOrWhiteSpace(errorMessage)) errorMessage = $"媒体裁剪返回错误码 {code}";
+                return false;
+            }
+
+            return true;
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(errorPointer);
+            Marshal.FreeCoTaskMem(outputPointer);
+            Marshal.FreeCoTaskMem(inputPointer);
+        }
+    }
+
+    public static bool TryExtractAudioStream(
+        string inputMedia,
+        string outputAudio,
+        int streamIndex,
+        out string? errorMessage)
+    {
+        errorMessage = null;
+        var native = Shared.Value;
+        if (native?._extractAudioStream is null || string.IsNullOrWhiteSpace(inputMedia) || string.IsNullOrWhiteSpace(outputAudio))
+        {
+            errorMessage = native is null ? "AstraCore 原生库未加载" : "路径参数无效";
+            return false;
+        }
+
+        var inputPointer = Marshal.StringToCoTaskMemUTF8(inputMedia);
+        var outputPointer = Marshal.StringToCoTaskMemUTF8(outputAudio);
+        var errorPointer = Marshal.AllocHGlobal(1024);
+        try
+        {
+            var code = native._extractAudioStream(inputPointer, outputPointer, streamIndex, errorPointer, 1024);
+            if (code != 0)
+            {
+                errorMessage = Marshal.PtrToStringUTF8(errorPointer);
+                if (string.IsNullOrWhiteSpace(errorMessage)) errorMessage = $"音频流提取返回错误码 {code}";
                 return false;
             }
 
