@@ -256,7 +256,7 @@ jobs:
       - name: Package Windows Release (Native AOT)
         shell: pwsh
         run: |
-          ./package-release.ps1 -NativeAot -Version 0.1.2-DEV
+          ./package-release.ps1 -NativeAot -Version 0.1.2-DEV -FfmpegDir ./runtime/tools/ffmpeg
 
       - name: Upload Windows x64 Setup & ZIP artifacts
         uses: actions/upload-artifact@v4

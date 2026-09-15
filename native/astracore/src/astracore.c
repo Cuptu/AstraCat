@@ -222,6 +222,7 @@ int ac_check_encoder(const char *encoder_name)
         ctx->time_base = (AVRational){1, 30};
         ctx->framerate = (AVRational){30, 1};
         ctx->pix_fmt = AV_PIX_FMT_YUV420P;
+#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(61, 0, 0)
         const void *out_configs = NULL;
         if (avcodec_get_supported_config(NULL, codec, AV_CODEC_CONFIG_PIX_FORMAT, 0, &out_configs, NULL) >= 0 && out_configs) {
             const enum AVPixelFormat *fmts = (const enum AVPixelFormat *)out_configs;
@@ -229,11 +230,17 @@ int ac_check_encoder(const char *encoder_name)
                 ctx->pix_fmt = fmts[0];
             }
         }
+#else
+        if (codec->pix_fmts && codec->pix_fmts[0] != AV_PIX_FMT_NONE) {
+            ctx->pix_fmt = codec->pix_fmts[0];
+        }
+#endif
     } else if (codec->type == AVMEDIA_TYPE_AUDIO) {
         ctx->sample_rate = 44100;
         AVChannelLayout layout = AV_CHANNEL_LAYOUT_STEREO;
         av_channel_layout_copy(&ctx->ch_layout, &layout);
         ctx->sample_fmt = AV_SAMPLE_FMT_S16;
+#if LIBAVCODEC_VERSION_INT >= AV_VERSION_INT(61, 0, 0)
         const void *out_configs = NULL;
         if (avcodec_get_supported_config(NULL, codec, AV_CODEC_CONFIG_SAMPLE_FORMAT, 0, &out_configs, NULL) >= 0 && out_configs) {
             const enum AVSampleFormat *fmts = (const enum AVSampleFormat *)out_configs;
@@ -241,6 +248,11 @@ int ac_check_encoder(const char *encoder_name)
                 ctx->sample_fmt = fmts[0];
             }
         }
+#else
+        if (codec->sample_fmts && codec->sample_fmts[0] != AV_SAMPLE_FMT_NONE) {
+            ctx->sample_fmt = codec->sample_fmts[0];
+        }
+#endif
     }
 
     int ret = avcodec_open2(ctx, codec, NULL);

@@ -81,15 +81,21 @@ function Install-LibMpv {
 }
 
 function Install-Ffmpeg {
-    $archiveName = "ffmpeg-n8.1.2-44-g7c533d0f86-win64-gpl-shared-8.1.zip"
+    $archiveName = "ffmpeg-8.1.2-full_build-shared.7z"
     $archivePath = Join-Path $workingDirectory $archiveName
-    $archiveUri = "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-08-20-13-45/$archiveName"
-    $archiveHash = "A647DCD8E55323A6F9C367F73BF95E0624C2652F32B9E7A9766394377B84ECE8"
+    $archiveUri = "https://github.com/GyanD/codexffmpeg/releases/download/8.1.2/$archiveName"
+    $archiveHash = "CBA748035C21CE1431D0823C7A3A711F38616F89F87A265DCEDDF9B7F6749D2D"
 
     Get-VerifiedDownload $archiveUri $archivePath $archiveHash
 
     $extractDirectory = Join-Path $workingDirectory "ffmpeg"
-    Expand-Archive -LiteralPath $archivePath -DestinationPath $extractDirectory
+    New-Item -ItemType Directory -Path $extractDirectory | Out-Null
+    $tar = Get-Command tar.exe -ErrorAction SilentlyContinue
+    if (-not $tar) { $tar = Get-Command tar -ErrorAction SilentlyContinue }
+    if (-not $tar) { throw "未找到 bsdtar，无法解压 FFmpeg 的 7z 文件。" }
+    & $tar.Source -xf $archivePath -C $extractDirectory
+    if ($LASTEXITCODE -ne 0) { throw "FFmpeg 解压失败。" }
+
     $sourceFfmpeg = Get-ChildItem -LiteralPath $extractDirectory -Recurse -File -Filter "ffmpeg.exe" |
         Select-Object -First 1
     if (-not $sourceFfmpeg) { throw "FFmpeg 压缩包中没有 ffmpeg.exe。" }
@@ -116,11 +122,11 @@ function Install-Ffmpeg {
     Copy-Item -LiteralPath $license.FullName -Destination (Join-Path $targetDirectory "LICENSE.txt")
 
     @(
-        "Distributor: BtbN/FFmpeg-Builds",
-        "Release: autobuild-2026-08-20-13-45",
+        "Distributor: GyanD/codexffmpeg",
+        "Release: 8.1.2",
         "Archive: $archiveName",
         "Archive SHA-256: $archiveHash",
-        "Source: https://github.com/BtbN/FFmpeg-Builds/releases/tag/autobuild-2026-08-20-13-45"
+        "Source: https://github.com/GyanD/codexffmpeg/releases/tag/8.1.2"
     ) | Set-Content -LiteralPath (Join-Path $targetDirectory "FFMPEG_SOURCE.txt") -Encoding UTF8
 
     $encoderList = (& (Join-Path $targetDirectory "ffmpeg.exe") -hide_banner -encoders 2>$null | Out-String)
@@ -129,7 +135,7 @@ function Install-Ffmpeg {
             throw "固定 FFmpeg 构建缺少必要编码器 $requiredEncoder。"
         }
     }
-    Write-Host "BtbN FFmpeg 8.1.2 Shared 已安装并通过校验。" -ForegroundColor Green
+    Write-Host "FFmpeg 8.1.2 Shared 已安装并通过校验。" -ForegroundColor Green
 }
 
 try {
