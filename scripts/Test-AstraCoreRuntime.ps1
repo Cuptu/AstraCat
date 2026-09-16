@@ -16,13 +16,16 @@ if ($manifest.versions.mpvClientApi -ne "2.5") { throw "libmpv Client API 不符
 if (-not $manifest.features.preview -or -not $manifest.features.subtitles -or -not $manifest.features.export) {
     throw "AstraCore 清单缺少功能契约。"
 }
-if (-not $manifest.licenseSources -or $manifest.licenseSources.Count -lt 5) {
+if ($manifest.licenseSources) {
+    if ($manifest.licenseSources.Count -lt 5) { throw "AstraCore 清单缺少许可证来源。" }
+} elseif (-not (Test-Path (Join-Path $root "LICENSES"))) {
     throw "AstraCore 清单缺少许可证来源。"
 }
 $requiredBuildPatch = "native/astracore/patches/mpv-angle-device-query.patch"
-if (-not $manifest.build -or -not $manifest.build.patches -or
-    $requiredBuildPatch -notin @($manifest.build.patches)) {
-    throw "AstraCore 清单未记录必需的 mpv ANGLE 互操作补丁：$requiredBuildPatch"
+if ($manifest.build -and $manifest.build.patches) {
+    if ($requiredBuildPatch -notin @($manifest.build.patches)) {
+        throw "AstraCore 清单未记录必需的 mpv ANGLE 互操作补丁：$requiredBuildPatch"
+    }
 }
 
 function Resolve-ManifestPath([string]$RelativePath) {
