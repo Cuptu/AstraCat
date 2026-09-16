@@ -32,6 +32,8 @@ for d in "$brew_prefix"/opt/*/lib/pkgconfig; do
     [[ -d "$d" ]] && PKG_CONFIG_PATH="$d:$PKG_CONFIG_PATH"
 done
 export PKG_CONFIG_PATH
+export CPATH="$prefix/include:$brew_prefix/include:$brew_prefix/opt/vulkan-headers/include:${CPATH:-}"
+export LIBRARY_PATH="$prefix/lib:$brew_prefix/lib:${LIBRARY_PATH:-}"
 export DYLD_LIBRARY_PATH="$prefix/lib:${DYLD_LIBRARY_PATH:-}"
 
 
