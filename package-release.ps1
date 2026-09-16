@@ -46,9 +46,15 @@ if ($Version -cnotmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') {
 }
 
 if ([string]::IsNullOrWhiteSpace($AstraCoreDir)) {
-    $defaultAstraCore = Join-Path $rootDir "artifacts\astracore\win-x64"
-    if (Test-Path (Join-Path $defaultAstraCore "astracore-runtime.json")) {
-        $AstraCoreDir = $defaultAstraCore
+    $candidateRoots = @(
+        (Join-Path $rootDir "runtime\tools\astracore\win-x64"),
+        (Join-Path $rootDir "artifacts\astracore\win-x64")
+    )
+    foreach ($cand in $candidateRoots) {
+        if (Test-Path (Join-Path $cand "astracore-runtime.json")) {
+            $AstraCoreDir = $cand
+            break
+        }
     }
 }
 $distDir = if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {

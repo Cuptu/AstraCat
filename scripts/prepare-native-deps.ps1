@@ -1,11 +1,13 @@
 [CmdletBinding()]
 param(
-    [ValidateSet("all", "mpv", "ffmpeg")]
-    [string]$Component = "all"
+    [ValidateSet("all", "astracore", "mpv", "ffmpeg")]
+    [string]$Component = "astracore"
 )
 
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+Add-Type -AssemblyName System.IO.Compression
 
 $repositoryRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $toolsRoot = [IO.Path]::GetFullPath((Join-Path $repositoryRoot "runtime\tools"))
@@ -150,12 +152,48 @@ function Install-Ffmpeg {
     Write-Host "FFmpeg 8.1.2 Shared 已安装并通过校验。" -ForegroundColor Green
 }
 
+function Install-AstraCore {
+    $targetDirectory = Join-Path $toolsRoot "astracore\win-x64"
+    Assert-PathInsideTools $targetDirectory
+
+    # 1. 优先复用本地 artifacts/astracore/win-x64
+    $localArtifact = Join-Path $repositoryRoot "artifacts\astracore\win-x64"
+    if (Test-Path (Join-Path $localArtifact "astracore-runtime.json")) {
+        Write-Host "检测到本地 AstraCore win-x64 构建产物，同步到 runtime\tools..." -ForegroundColor Cyan
+        if (Test-Path -LiteralPath $targetDirectory) {
+            Remove-Item -LiteralPath $targetDirectory -Recurse -Force
+        }
+        New-Item -ItemType Directory -Path $targetDirectory -Force | Out-Null
+        Copy-Item -Path (Join-Path $localArtifact "*") -Destination $targetDirectory -Recurse -Force
+        & (Join-Path $PSScriptRoot "Test-AstraCoreRuntime.ps1") -RuntimeDirectory $targetDirectory
+        Write-Host "AstraCore win-x64 运行时已就绪并通过校验。" -ForegroundColor Green
+        return
+    }
+
+    # 2. 从 Cuptu/AstraCore 仓库下载 release 压缩包
+    $archiveName = "AstraCore-win-x64.zip"
+    $archivePath = Join-Path $workingDirectory $archiveName
+    $archiveUri = "https://github.com/Cuptu/AstraCore/releases/download/v0.1.0/$archiveName"
+    Write-Host "下载 $archiveName (来自 Cuptu/AstraCore)..." -ForegroundColor Cyan
+    Invoke-WebRequest -UseBasicParsing -Uri $archiveUri -OutFile $archivePath
+
+    if (Test-Path -LiteralPath $targetDirectory) {
+        Remove-Item -LiteralPath $targetDirectory -Recurse -Force
+    }
+    New-Item -ItemType Directory -Path $targetDirectory -Force | Out-Null
+    [System.IO.Compression.ZipFile]::ExtractToDirectory($archivePath, $targetDirectory)
+
+    & (Join-Path $PSScriptRoot "Test-AstraCoreRuntime.ps1") -RuntimeDirectory $targetDirectory
+    Write-Host "AstraCore win-x64 运行时已下载并通过校验。" -ForegroundColor Green
+}
+
 try {
     New-Item -ItemType Directory -Path $workingDirectory | Out-Null
     New-Item -ItemType Directory -Path $toolsRoot -Force | Out-Null
 
-    if ($Component -in @("all", "mpv")) { Install-LibMpv }
-    if ($Component -in @("all", "ffmpeg")) { Install-Ffmpeg }
+    if ($Component -in @("all", "astracore")) { Install-AstraCore }
+    if ($Component -eq "mpv") { Install-LibMpv }
+    if ($Component -eq "ffmpeg") { Install-Ffmpeg }
 }
 finally {
     if (Test-Path -LiteralPath $workingDirectory) {
