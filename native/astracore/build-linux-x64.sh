@@ -87,7 +87,7 @@ pushd "$build_root/ffmpeg" >/dev/null
 "$ASTRACORE_FFMPEG_SOURCE/configure" \
     --prefix="$prefix" \
     --enable-shared --disable-static --disable-debug --disable-doc --disable-ffplay \
-    --enable-gpl --enable-version3 --disable-vulkan \
+    --enable-gpl --enable-version3 --disable-vulkan --enable-gnutls \
     --disable-everything --disable-avdevice --enable-network \
     --enable-libass --enable-libfontconfig --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libdav1d \
     --enable-libx264 --enable-libx265 --enable-libsvtav1 \
