@@ -19,8 +19,9 @@ build_root="$ASTRACORE_REPO/artifacts/astracore-build/linux-x64"
 prefix="$build_root/prefix"
 rm -rf "$build_root" "$ASTRACORE_OUTPUT"
 mkdir -p "$build_root" "$prefix" "$ASTRACORE_OUTPUT"
-export PKG_CONFIG_PATH="$prefix/lib/pkgconfig:$prefix/lib/x86_64-linux-gnu/pkgconfig:${PKG_CONFIG_PATH:-/usr/lib/pkgconfig:/usr/share/pkgconfig}"
+export PKG_CONFIG_PATH="$prefix/lib/pkgconfig:$prefix/lib/x86_64-linux-gnu/pkgconfig:$prefix/share/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig:/usr/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
 export LD_LIBRARY_PATH="$prefix/lib:$prefix/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH:-}"
+
 
 echo "==> Building minimal HarfBuzz (FreeType shaper)..."
 meson setup "$build_root/harfbuzz" "$ASTRACORE_HARFBUZZ_SOURCE" \
@@ -69,6 +70,13 @@ cmake -S "$ASTRACORE_X265_SOURCE/source" -B "$build_root/x265" -G Ninja \
 cmake --build "$build_root/x265"
 cmake --install "$build_root/x265"
 
+echo "==> Ensuring ffnvcodec headers for NVENC..."
+if ! pkg-config --exists ffnvcodec 2>/dev/null; then
+    rm -rf "$build_root/nv-codec-headers"
+    git clone --depth 1 https://git.videolan.org/git/ffmpeg/nv-codec-headers.git "$build_root/nv-codec-headers"
+    make -C "$build_root/nv-codec-headers" install PREFIX="$prefix"
+fi
+
 echo "==> Configuring and building FFmpeg 9.0.1 (shared, Linux VA-API/NVENC profile)..."
 mkdir -p "$build_root/ffmpeg"
 pushd "$build_root/ffmpeg" >/dev/null
@@ -77,17 +85,18 @@ pushd "$build_root/ffmpeg" >/dev/null
     --enable-shared --disable-static --disable-debug --disable-doc --disable-ffplay \
     --enable-gpl --enable-version3 --disable-vulkan \
     --disable-everything --disable-avdevice --enable-network \
-    --enable-libass --enable-fontconfig --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libdav1d \
+    --enable-libass --enable-libfontconfig --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libdav1d \
     --enable-libx264 --enable-libx265 --enable-libsvtav1 \
     --enable-vaapi --enable-vdpau --enable-ffnvcodec --enable-nvenc \
     --enable-protocol=file,pipe,http,https,httpproxy,tcp,tls,crypto,data \
     --enable-demuxer=mov,matroska,avi,flv,mpegts,wav,ogg,flac,aac,mp3,image2,ass,srt,webvtt,hls,asf \
     --enable-muxer=mp4,mov,matroska,webm,wav,pcm_s16le,adts,ass,srt,webvtt,image2 \
     --enable-decoder=h264,hevc,av1,libdav1d,vp8,vp9,mpeg2video,mpeg4,mjpeg,png,aac,mp3,flac,opus,vorbis,alac,pcm_s16le,pcm_s24le,pcm_s32le,pcm_f32le,ass,ssa,srt,subrip,webvtt,movtext \
-    --enable-encoder=libx264,libx265,libsvtav1,aac,pcm_s16le,png,ass,ssa,srt,subrip,webvtt,movtext,h264_nvenc,hevc_nvenc,av1_nvenc,h264_vaapi,hevc_vaapi,av1_vaapi \
+    --enable-encoder=libx264,libx265,libsvtav1,aac,pcm_s16le,png,ass,ssa,srt,subrip,webvtt,movtext,h264_nvenc,hevc_nvenc,av1_nvenc,h264_vaapi,hevc_vaapi \
     --enable-parser=h264,hevc,av1,vp8,vp9,mpeg4video,mpegvideo,aac,mpegaudio,flac,opus,vorbis \
     --enable-filter=aformat,aresample,asetpts,atrim,anull,atempo,volume,format,fps,null,scale,setpts,subtitles,trim \
     --enable-bsf=aac_adtstoasc,av1_frame_merge,av1_metadata,h264_mp4toannexb,hevc_mp4toannexb,vp9_superframe \
+
     --enable-hwaccel=h264_vaapi,hevc_vaapi,av1_vaapi,vp9_vaapi,mpeg2_vaapi,h264_vdpau,hevc_vdpau,vp9_vdpau,mpeg2_vdpau \
     --disable-libbluray --disable-libdvdnav --disable-libdvdread \
     --disable-lv2 --disable-frei0r --disable-librist --disable-libsrt --disable-libssh --disable-libzmq \

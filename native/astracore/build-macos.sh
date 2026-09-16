@@ -26,9 +26,10 @@ fi
 build_root="$ASTRACORE_REPO/artifacts/astracore-build/$RID_DEFAULT"
 prefix="$build_root/prefix"
 rm -rf "$build_root" "$ASTRACORE_OUTPUT"
-mkdir -p "$build_root" "$prefix" "$ASTRACORE_OUTPUT"
-export PKG_CONFIG_PATH="$prefix/lib/pkgconfig:${PKG_CONFIG_PATH:-/usr/local/lib/pkgconfig:/opt/homebrew/lib/pkgconfig}"
+brew_prefix="$(brew --prefix 2>/dev/null || echo /opt/homebrew)"
+export PKG_CONFIG_PATH="$prefix/lib/pkgconfig:$brew_prefix/lib/pkgconfig:$brew_prefix/share/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
 export DYLD_LIBRARY_PATH="$prefix/lib:${DYLD_LIBRARY_PATH:-}"
+
 
 echo "==> Building minimal HarfBuzz (CoreText shaper)..."
 meson setup "$build_root/harfbuzz" "$ASTRACORE_HARFBUZZ_SOURCE" \
