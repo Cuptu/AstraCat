@@ -80,6 +80,23 @@ internal static class MediaToolLocator
         Path.Combine(AppContext.BaseDirectory, "runtime", "tools", "ffmpeg", Executable("ffprobe")),
         Path.Combine(Environment.CurrentDirectory, "runtime", "tools", "ffmpeg", Executable("ffprobe")));
 
+    public static string? FindFontsDirectory()
+    {
+        var candidates = new[]
+        {
+            Path.Combine(AppContext.BaseDirectory, "Assets", "Fonts"),
+            Path.Combine(Environment.CurrentDirectory, "Assets", "Fonts"),
+            Path.Combine(AppContext.BaseDirectory, "runtime", "tools", "fonts"),
+            Path.Combine(Environment.CurrentDirectory, "runtime", "tools", "fonts")
+        };
+        foreach (var candidate in candidates)
+        {
+            if (Directory.Exists(candidate))
+                return Path.GetFullPath(candidate);
+        }
+        return null;
+    }
+
     private static string Executable(string name) => OperatingSystem.IsWindows() ? $"{name}.exe" : name;
 
     private static string? FindFile(params string[] candidates)

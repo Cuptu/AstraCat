@@ -2670,7 +2670,9 @@ public partial class MainWindow
         {
             Text = "字幕 Aa",
             Foreground = foreground,
-            FontFamily = new FontFamily(string.IsNullOrWhiteSpace(style.FontFamily) ? "Microsoft YaHei UI" : style.FontFamily),
+            FontFamily = string.Equals(style.FontFamily, "HarmonyOS Sans SC", StringComparison.OrdinalIgnoreCase)
+                ? new FontFamily("avares://AstraCat/Assets/Fonts#HarmonyOS Sans SC, Inter, PingFang SC, Microsoft YaHei, sans-serif")
+                : new FontFamily(string.IsNullOrWhiteSpace(style.FontFamily) ? "Microsoft YaHei UI" : style.FontFamily),
             FontSize = Math.Clamp(style.FontSize * 0.42, 15, 22),
             FontWeight = style.Bold ? FontWeight.Bold : FontWeight.Normal,
             FontStyle = style.Italic ? FontStyle.Italic : FontStyle.Normal,
@@ -2815,7 +2817,7 @@ public partial class MainWindow
     private static void ApplyWorkspaceDefaultPreset(SubtitleStyleDefinition style, string name)
     {
         style.Name = name;
-        style.FontFamily = "Microsoft YaHei";
+        style.FontFamily = SubtitleStyleDefinition.DefaultFontFamily;
         style.TextColor = "#FFFFFF";
         style.OutlineColor = "#22263B";
         style.Bold = true;

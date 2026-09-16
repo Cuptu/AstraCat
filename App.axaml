@@ -5,7 +5,7 @@
              RequestedThemeVariant="Light">
   <Application.Resources>
     <!-- Shared typography for application controls and code-oriented fields. -->
-    <FontFamily x:Key="AppUiFontFamily">Inter, PingFang SC, Hiragino Sans GB, Microsoft YaHei, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif</FontFamily>
+    <FontFamily x:Key="AppUiFontFamily">avares://AstraCat/Assets/Fonts#HarmonyOS Sans SC, Inter, PingFang SC, Hiragino Sans GB, Microsoft YaHei, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif</FontFamily>
     <FontFamily x:Key="AppCodeFontFamily">JetBrains Mono, Cascadia Code, Fira Code, Consolas, Menlo, Monaco, Courier New, monospace</FontFamily>
 
     <!-- Global ComboBox Dropdown Overrides: Pure White background, 18px Squircle corner radius, 1px border -->

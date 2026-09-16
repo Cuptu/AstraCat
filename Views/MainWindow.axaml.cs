@@ -78,7 +78,7 @@ public partial class MainWindow : Window
         public bool CorrectSubtitles { get; set; } = false;
         public bool ReflectTranslation { get; set; } = true;
         public string TranslationPrompt { get; set; } = string.Empty;
-        public string SubtitleFontFamily { get; set; } = "Microsoft YaHei UI";
+        public string SubtitleFontFamily { get; set; } = SubtitleStyleDefinition.DefaultFontFamily;
         public double SubtitleFontSize { get; set; } = 42;
         public string SubtitleTextColor { get; set; } = "#FFFFFF";
         public string SubtitleOutlineColor { get; set; } = "#000000";

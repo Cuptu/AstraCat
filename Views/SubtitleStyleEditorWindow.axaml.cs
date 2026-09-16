@@ -14,12 +14,17 @@ namespace AstraCat;
 
 public partial class SubtitleStyleEditorWindow : Window
 {
-    private static readonly Lazy<string[]> SystemFontNames = new(() => FontManager.Current.SystemFonts
-        .Select(font => font.Name)
-        .Where(name => !string.IsNullOrWhiteSpace(name))
-        .Distinct(StringComparer.CurrentCultureIgnoreCase)
-        .OrderBy(name => name, StringComparer.CurrentCultureIgnoreCase)
-        .ToArray());
+    private static readonly Lazy<string[]> SystemFontNames = new(() =>
+    {
+        var installed = FontManager.Current.SystemFonts
+            .Select(font => font.Name)
+            .Where(name => !string.IsNullOrWhiteSpace(name));
+        var list = new List<string> { "HarmonyOS Sans SC" };
+        list.AddRange(installed.Where(n => !string.Equals(n, "HarmonyOS Sans SC", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.CurrentCultureIgnoreCase)
+            .OrderBy(n => n, StringComparer.CurrentCultureIgnoreCase));
+        return list.ToArray();
+    });
 
     private readonly SubtitleStyleDefinition _original;
     private SubtitleStyleDefinition _working;
@@ -325,7 +330,7 @@ public partial class SubtitleStyleEditorWindow : Window
         PreviewTextContainer.IsVisible = false;
         PreviewOutlineLayer.IsVisible = false;
 
-        PreviewText.FontFamily = new FontFamily(_working.FontFamily);
+        PreviewText.FontFamily = ResolveFontFamily(_working.FontFamily);
         PreviewText.FontSize = Math.Clamp(_working.FontSize, 18, 160);
         PreviewText.FontWeight = _working.Bold ? FontWeight.Bold : FontWeight.Normal;
         PreviewText.FontStyle = _working.Italic ? FontStyle.Italic : FontStyle.Normal;
@@ -677,5 +682,14 @@ public partial class SubtitleStyleEditorWindow : Window
         ReadControls();
         _closeResult = _working.Clone();
         Close(_closeResult);
+    }
+
+    private static FontFamily ResolveFontFamily(string? fontName)
+    {
+        if (string.IsNullOrWhiteSpace(fontName))
+            return (FontFamily)Application.Current!.FindResource("AppUiFontFamily")!;
+        if (string.Equals(fontName, "HarmonyOS Sans SC", StringComparison.OrdinalIgnoreCase))
+            return new FontFamily("avares://AstraCat/Assets/Fonts#HarmonyOS Sans SC, Inter, PingFang SC, Microsoft YaHei, sans-serif");
+        return new FontFamily(fontName);
     }
 }
