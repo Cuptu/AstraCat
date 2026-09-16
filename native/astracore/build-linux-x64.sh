@@ -19,7 +19,11 @@ build_root="$ASTRACORE_REPO/artifacts/astracore-build/linux-x64"
 prefix="$build_root/prefix"
 rm -rf "$build_root" "$ASTRACORE_OUTPUT"
 mkdir -p "$build_root" "$prefix" "$ASTRACORE_OUTPUT"
-export PKG_CONFIG_PATH="$prefix/lib/pkgconfig:$prefix/lib/x86_64-linux-gnu/pkgconfig:$prefix/share/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig:/usr/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+export PKG_CONFIG_PATH="$prefix/lib/pkgconfig:$prefix/lib/x86_64-linux-gnu/pkgconfig:$prefix/lib64/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig:/usr/lib/pkgconfig:/usr/local/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+for d in /usr/lib/*/pkgconfig /usr/local/lib/*/pkgconfig; do
+    [[ -d "$d" ]] && PKG_CONFIG_PATH="$d:$PKG_CONFIG_PATH"
+done
+export PKG_CONFIG_PATH
 export LD_LIBRARY_PATH="$prefix/lib:$prefix/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH:-}"
 
 
@@ -100,7 +104,11 @@ pushd "$build_root/ffmpeg" >/dev/null
     --enable-hwaccel=h264_vaapi,hevc_vaapi,av1_vaapi,vp9_vaapi,mpeg2_vaapi,h264_vdpau,hevc_vdpau,vp9_vdpau,mpeg2_vdpau \
     --disable-libbluray --disable-libdvdnav --disable-libdvdread \
     --disable-lv2 --disable-frei0r --disable-librist --disable-libsrt --disable-libssh --disable-libzmq \
-    --extra-cflags="-fPIC"
+    --extra-cflags="-fPIC" || {
+        echo "=== FFmpeg configure failed. config.log tail: ==="
+        tail -n 120 ffbuild/config.log
+        exit 1
+    }
 make -j"$(nproc)"
 make install
 popd >/dev/null

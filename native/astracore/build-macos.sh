@@ -63,6 +63,13 @@ meson setup "$build_root/dav1d" "$ASTRACORE_DAV1D_SOURCE" \
 meson compile -C "$build_root/dav1d"
 meson install -C "$build_root/dav1d"
 
+echo "==> Ensuring Jinja2 for libplacebo shader compilation..."
+brew_python="$(brew --prefix 2>/dev/null || echo /opt/homebrew)/bin/python3"
+if [[ -x "$brew_python" ]]; then
+    "$brew_python" -m pip install --break-system-packages jinja2 2>/dev/null || true
+fi
+python3 -m pip install --break-system-packages jinja2 2>/dev/null || true
+
 echo "==> Building libplacebo minimal..."
 meson setup "$build_root/libplacebo" "$ASTRACORE_LIBPLACEBO_SOURCE" \
     --prefix "$prefix" --buildtype release --default-library shared \
@@ -102,7 +109,11 @@ pushd "$build_root/ffmpeg" >/dev/null
     --enable-bsf=aac_adtstoasc,av1_frame_merge,av1_metadata,h264_mp4toannexb,hevc_mp4toannexb,vp9_superframe \
     --enable-hwaccel=h264_videotoolbox,hevc_videotoolbox,av1_videotoolbox,vp9_videotoolbox,mpeg2_videotoolbox \
     --disable-libbluray --disable-libdvdnav --disable-libdvdread \
-    --disable-lv2 --disable-frei0r --disable-librist --disable-libsrt --disable-libssh --disable-libzmq
+    --disable-lv2 --disable-frei0r --disable-librist --disable-libsrt --disable-libssh --disable-libzmq || {
+        echo "=== FFmpeg configure failed. config.log tail: ==="
+        tail -n 120 ffbuild/config.log
+        exit 1
+    }
 make -j"$(sysctl -n hw.ncpu)"
 make install
 popd >/dev/null
