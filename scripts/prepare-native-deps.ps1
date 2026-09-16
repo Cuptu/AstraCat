@@ -77,6 +77,18 @@ function Install-LibMpv {
     }
 
     Copy-Item -LiteralPath $sourceDll.FullName -Destination (Join-Path $targetDirectory "libmpv-2.dll") -Force
+
+    $forwarderSource = Join-Path $repositoryRoot "native\libegl-avalonia-forwarder\libEGL.dll"
+    if (Test-Path -LiteralPath $forwarderSource) {
+        $forwarderTarget = Join-Path $targetDirectory "libEGL.dll"
+        Copy-Item -LiteralPath $forwarderSource -Destination $forwarderTarget -Force
+        $actualEglHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $forwarderTarget).Hash
+        if ($actualEglHash -ne "22005170E92E7629012A7A524D983632383242DC684EFA80A1C2FD286A7902D8") {
+            throw "libEGL.dll SHA-256 不匹配。"
+        }
+        Write-Host "libEGL 桥接 DLL 已部署并通过校验。" -ForegroundColor Green
+    }
+
     Write-Host "libmpv 已安装并通过哈希校验。" -ForegroundColor Green
 }
 

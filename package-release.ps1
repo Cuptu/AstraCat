@@ -140,6 +140,12 @@ if ($actualLibMpvHash -ne $expectedLibMpvHash) {
     throw "发布失败：libmpv-2.dll SHA-256 不符合固定供应链版本：$actualLibMpvHash"
 }
 $eglBridgePath = Join-Path $layoutDir "libEGL.dll"
+if (-not (Test-Path $eglBridgePath)) {
+    $forwarderSource = Join-Path $rootDir "native\libegl-avalonia-forwarder\libEGL.dll"
+    if (Test-Path -LiteralPath $forwarderSource) {
+        Copy-Item -LiteralPath $forwarderSource -Destination $eglBridgePath -Force
+    }
+}
 if (-not (Test-Path $eglBridgePath)) { throw "发布失败：缺少 Avalonia ANGLE EGL 桥 libEGL.dll" }
 $expectedEglBridgeHash = "22005170E92E7629012A7A524D983632383242DC684EFA80A1C2FD286A7902D8"
 $actualEglBridgeHash = (Get-FileHash -Algorithm SHA256 $eglBridgePath).Hash
@@ -245,6 +251,12 @@ Write-Host "   已内置 $ffmpegVersionLine" -ForegroundColor Gray
 }
 
 $eglBridgePath = Join-Path $layoutDir "libEGL.dll"
+if (-not (Test-Path $eglBridgePath)) {
+    $forwarderSource = Join-Path $rootDir "native\libegl-avalonia-forwarder\libEGL.dll"
+    if (Test-Path -LiteralPath $forwarderSource) {
+        Copy-Item -LiteralPath $forwarderSource -Destination $eglBridgePath -Force
+    }
+}
 if (-not (Test-Path $eglBridgePath)) { throw "发布失败：缺少 Avalonia ANGLE EGL 桥 libEGL.dll" }
 $expectedEglBridgeHash = "22005170E92E7629012A7A524D983632383242DC684EFA80A1C2FD286A7902D8"
 $actualEglBridgeHash = (Get-FileHash -Algorithm SHA256 $eglBridgePath).Hash
@@ -274,6 +286,10 @@ if ($NativeAot) {
         throw "发布失败：Native AOT 契约检查超时。"
     }
     if ($smokeProcess.ExitCode -ne 0) {
+        if (Test-Path $smokeReport) {
+            Write-Host "Native AOT smoke 报告：" -ForegroundColor Red
+            Get-Content $smokeReport | Write-Host -ForegroundColor Red
+        }
         throw "发布失败：Native AOT 契约检查失败，请检查 $smokeReport。"
     }
     Write-Host "   已通过 Native AOT 离线契约检查" -ForegroundColor Gray
@@ -293,6 +309,11 @@ $isccPaths = @(
     "C:\Program Files\Inno Setup 6\ISCC.exe"
 )
 $iscc = $isccPaths | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $iscc) {
+    $isccCmd = Get-Command iscc.exe -ErrorAction SilentlyContinue
+    if (-not $isccCmd) { $isccCmd = Get-Command iscc -ErrorAction SilentlyContinue }
+    if ($isccCmd) { $iscc = $isccCmd.Source }
+}
 
 $exeSetupPath = Join-Path $distDir "AstraCat-v$Version-Setup.exe"
 if ($iscc -and (Test-Path (Join-Path $rootDir "installer\AstraCat-Setup.iss"))) {

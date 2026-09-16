@@ -40,6 +40,10 @@
           Condition="$([MSBuild]::IsOSPlatform('Windows')) and Exists('runtime\tools\mpv\libEGL.dll')"
           Link="libEGL.dll"
           CopyToOutputDirectory="PreserveNewest" />
+    <None Include="native\libegl-avalonia-forwarder\libEGL.dll"
+          Condition="$([MSBuild]::IsOSPlatform('Windows')) and Exists('native\libegl-avalonia-forwarder\libEGL.dll') and !Exists('runtime\tools\mpv\libEGL.dll')"
+          Link="libEGL.dll"
+          CopyToOutputDirectory="PreserveNewest" />
     <None Include="runtime\tools\mpv\LIBMPV_SOURCE.md" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
