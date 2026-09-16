@@ -24,6 +24,7 @@ set_target_properties(AstraCore.Native PROPERTIES
     VERSION ${PROJECT_VERSION}
     SOVERSION 1
     OUTPUT_NAME "AstraCore.Native")
+
 if(WIN32)
     set_target_properties(AstraCore.Native PROPERTIES PREFIX "")
 elseif(APPLE)
@@ -42,8 +43,10 @@ include(CTest)
 if(BUILD_TESTING)
     add_executable(astracore_probe_smoke tests/probe_smoke.c)
     target_link_libraries(astracore_probe_smoke PRIVATE AstraCore.Native)
+
     add_executable(astracore_test_editing tests/test_editing.c)
     target_link_libraries(astracore_test_editing PRIVATE AstraCore.Native)
+
     if(APPLE)
         set_target_properties(astracore_probe_smoke PROPERTIES
             INSTALL_RPATH "@executable_path"
@@ -59,12 +62,21 @@ if(BUILD_TESTING)
             INSTALL_RPATH "$ORIGIN"
             BUILD_WITH_INSTALL_RPATH TRUE)
     endif()
+
     add_test(NAME astracore_probe_invalid_path COMMAND astracore_probe_smoke)
     add_test(NAME astracore_editing_tests COMMAND astracore_test_editing)
 endif()
 
 install(TARGETS AstraCore.Native
     RUNTIME DESTINATION bin
-    LIBRARY DESTINATION .
+    LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib)
+
 install(FILES include/astracore.h DESTINATION include)
+
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/astracore.pc.in
+    ${CMAKE_CURRENT_BINARY_DIR}/astracore.pc
+    @ONLY
+)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/astracore.pc DESTINATION lib/pkgconfig)

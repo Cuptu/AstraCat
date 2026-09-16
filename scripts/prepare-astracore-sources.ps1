@@ -5,16 +5,27 @@ $ErrorActionPreference = "Stop"
 $repositoryRoot = [IO.Path]::GetFullPath((Split-Path -Parent $PSScriptRoot))
 $destinationRoot = [IO.Path]::GetFullPath((Join-Path $repositoryRoot $Destination))
 $artifactsRoot = [IO.Path]::GetFullPath((Join-Path $repositoryRoot "artifacts"))
-if (-not $destinationRoot.StartsWith($artifactsRoot.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) {
+$artifactsPrefix = $artifactsRoot.TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
+if (-not $destinationRoot.StartsWith($artifactsPrefix, [StringComparison]::OrdinalIgnoreCase)) {
     throw "第三方源码只能准备到 artifacts：$destinationRoot"
 }
 
-function Get-PinnedSource([string]$Name, [string]$Repository, [string]$Commit) {
+function Get-PinnedSource([string]$Name, [string]$Repository, [string]$Commit, [string]$FallbackRepository = "") {
     $directory = Join-Path $destinationRoot $Name
     if (-not (Test-Path -LiteralPath $directory)) {
         New-Item -ItemType Directory -Path $destinationRoot -Force | Out-Null
-        & git clone --filter=blob:none $Repository $directory
-        if ($LASTEXITCODE -ne 0) { throw "$Name 克隆失败。" }
+        $cloned = $false
+        try {
+            & git clone --filter=blob:none $Repository $directory
+            if ($LASTEXITCODE -eq 0) { $cloned = $true }
+        } catch { }
+        if (-not $cloned -and -not [string]::IsNullOrWhiteSpace($FallbackRepository)) {
+            Write-Host "主源克隆失败，尝试镜像源 $FallbackRepository..." -ForegroundColor Yellow
+            if (Test-Path -LiteralPath $directory) { Remove-Item -LiteralPath $directory -Recurse -Force }
+            & git clone --filter=blob:none $FallbackRepository $directory
+            if ($LASTEXITCODE -eq 0) { $cloned = $true }
+        }
+        if (-not $cloned) { throw "$Name 克隆失败。" }
     }
     & git -C $directory fetch --depth 1 origin $Commit
     if ($LASTEXITCODE -ne 0) { throw "$Name 固定提交下载失败。" }

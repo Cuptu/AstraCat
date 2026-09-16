@@ -1,10 +1,7 @@
 # AstraCore media runtime
 
-AstraCore is AstraCat's RID-specific native media bundle. It shares one FFmpeg
-ABI and one libass instance between libmpv, the FFmpeg tools, and the thin
-`AstraCore.Native` C ABI. The legacy prebuilt runtime remains a development
-fallback until the new bundle passes the size, dependency, software, and GPU
-release gates.
+AstraCore is AstraCat's RID-specific native media bundle. It is also maintained as an independent upstream repository at **[Cuptu/AstraCore](https://github.com/Cuptu/AstraCore)** with its own multiplatform CI/CD and release cycles. It shares one FFmpeg ABI and one libass instance between libmpv, the FFmpeg tools, and the thin `AstraCore.Native` C ABI (ABI v4). The legacy prebuilt runtime remains a development fallback until the new bundle passes the size, dependency, software, and GPU release gates.
+
 
 ## Subtitle boundary
 

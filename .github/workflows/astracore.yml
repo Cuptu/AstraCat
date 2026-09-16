@@ -1,4 +1,4 @@
-name: Build AstraCore Windows runtime
+name: Build AstraCore Multiplatform Runtime
 
 on:
   workflow_dispatch:
@@ -7,13 +7,26 @@ permissions:
   contents: read
 
 jobs:
-  win-x64:
-    runs-on: windows-latest
+  build:
+    name: Build AstraCore ${{ matrix.rid }} (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: win-x64
+            os: windows-latest
+          - rid: linux-x64
+            os: ubuntu-24.04
+          - rid: osx-arm64
+            os: macos-latest
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install MSYS2 CLANG64 toolchain
+      - name: Install MSYS2 CLANG64 toolchain (Windows)
+        if: runner.os == 'Windows'
         uses: msys2/setup-msys2@v2
         with:
           msystem: CLANG64
@@ -42,6 +55,24 @@ jobs:
             mingw-w64-clang-x86_64-lcms2
             mingw-w64-clang-x86_64-zlib
 
+      - name: Install System Dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential clang llvm meson ninja-build cmake pkg-config \
+            nasm yasm patchelf git patch tar python3 \
+            libva-dev libvdpau-dev libdrm-dev libx11-dev libxrandr-dev \
+            libasound2-dev libpulse-dev libfreetype-dev libfribidi-dev \
+            libfontconfig-dev libx264-dev libsvtav1-dev libunibreak-dev \
+            liblcms2-dev zlib1g-dev libvulkan-dev
+
+      - name: Install System Dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew update
+          brew install meson ninja cmake pkg-config nasm fribidi freetype libx264 svt-av1 little-cms2
+
       - name: Prepare pinned source trees
         shell: pwsh
         run: ./scripts/prepare-astracore-sources.ps1
@@ -50,11 +81,12 @@ jobs:
         shell: pwsh
         env:
           ASTRACAT_MSYS2_BASH: C:\msys64\usr\bin\bash.exe
-        run: ./scripts/build-astracore.ps1
+        run: ./scripts/build-astracore.ps1 -RuntimeIdentifier ${{ matrix.rid }}
 
       - name: Upload native runtime
         uses: actions/upload-artifact@v4
         with:
-          name: AstraCore-win-x64
-          path: artifacts/astracore/win-x64
+          name: AstraCore-${{ matrix.rid }}
+          path: artifacts/astracore/${{ matrix.rid }}
           if-no-files-found: error
+
