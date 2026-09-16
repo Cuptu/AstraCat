@@ -10,3 +10,12 @@
 *.zip binary
 *.7z binary
 *.safetensors binary
+*.ttf binary
+*.otf binary
+
+# GitHub Linguist language statistics overrides
+scripts/** linguist-vendored
+engines/** linguist-vendored
+native/** linguist-vendored
+installer/** linguist-vendored
+docs/** linguist-documentation

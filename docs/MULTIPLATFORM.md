@@ -35,31 +35,25 @@ dotnet build -c Release
 ---
 
 ### 2.2 Linux x64
-
+ 
 在 Ubuntu / Debian 系统上构建：
-
+ 
 ```bash
-# 1. 安装构建依赖与媒体库
+# 1. 安装 Native AOT 编译依赖
 sudo apt-get update
-sudo apt-get install -y \
-  build-essential cmake ninja-build pkg-config \
-  libavformat-dev libavcodec-dev libavutil-dev libswresample-dev \
-  libmpv-dev ffmpeg libegl1-mesa-dev libgl1-mesa-dev
+sudo apt-get install -y build-essential zlib1g-dev
 
-# 2. 编译 AstraCore 原生 C ABI
-cmake -B build-native -S native/astracore -DCMAKE_BUILD_TYPE=Release -G Ninja
-cmake --build build-native
-ctest --test-dir build-native --output-on-failure
-
-# 3. 执行 Native AOT 编译
+# 2. 执行 Native AOT 编译
 dotnet publish AstraCat.csproj -c Release -r linux-x64 \
   -p:PublishProfile=NativeAot -p:PublishAot=true \
   -p:DebugType=None -p:DebugSymbols=false \
   -o dist/AstraCat-linux-x64
 
-# 4. 组装绿色运行包
+# 3. 下载并部署 AstraCore Linux 原生引擎包
 mkdir -p dist/AstraCat-linux-x64/runtime/tools/astracore/linux-x64
-cp build-native/libAstraCore.Native.so dist/AstraCat-linux-x64/runtime/tools/astracore/linux-x64/
+curl -sL https://github.com/Cuptu/AstraCore/releases/download/v0.1.0/AstraCore-linux-x64.tar.gz | tar -xz -C dist/AstraCat-linux-x64/runtime/tools/astracore/linux-x64/
+
+# 4. 组装绿色运行包
 mkdir -p dist/AstraCat-linux-x64/engines
 cp engines/asr_worker.py dist/AstraCat-linux-x64/engines/
 cp LICENSE README.md THIRD_PARTY_NOTICES.md dist/AstraCat-linux-x64/
@@ -73,23 +67,17 @@ cd dist && tar -czvf AstraCat-linux-x64.tar.gz AstraCat-linux-x64
 在 macOS 终端中构建：
 
 ```bash
-# 1. 通过 Homebrew 安装基础依赖
-brew install ffmpeg mpv pkg-config cmake ninja
-
-# 2. 编译 AstraCore 原生 C ABI
-cmake -B build-native -S native/astracore -DCMAKE_BUILD_TYPE=Release -G Ninja
-cmake --build build-native
-ctest --test-dir build-native --output-on-failure
-
-# 3. 执行 Native AOT 编译
+# 1. 执行 Native AOT 编译
 dotnet publish AstraCat.csproj -c Release -r osx-arm64 \
   -p:PublishProfile=NativeAot -p:PublishAot=true \
   -p:DebugType=None -p:DebugSymbols=false \
   -o dist/AstraCat-osx-arm64
 
-# 4. 组装绿色运行包
+# 2. 下载并部署 AstraCore macOS 原生引擎包
 mkdir -p dist/AstraCat-osx-arm64/runtime/tools/astracore/osx-arm64
-cp build-native/libAstraCore.Native.dylib dist/AstraCat-osx-arm64/runtime/tools/astracore/osx-arm64/
+curl -sL https://github.com/Cuptu/AstraCore/releases/download/v0.1.0/AstraCore-osx-arm64.tar.gz | tar -xz -C dist/AstraCat-osx-arm64/runtime/tools/astracore/osx-arm64/
+
+# 3. 组装绿色运行包
 mkdir -p dist/AstraCat-osx-arm64/engines
 cp engines/asr_worker.py dist/AstraCat-osx-arm64/engines/
 cp LICENSE README.md THIRD_PARTY_NOTICES.md dist/AstraCat-osx-arm64/

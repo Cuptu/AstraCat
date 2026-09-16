@@ -17,27 +17,18 @@ libavfilter/libass responsibility.
 
 ## Source and build contract
 
-Pinned source commits are prepared under ignored `artifacts/` storage:
+AstraCore is developed and built from the dedicated repository [Cuptu/AstraCore](https://github.com/Cuptu/AstraCore) with dedicated multiplatform CI/CD for Windows, Linux, and macOS.
+
+In AstraCat, the verified native runtime bundle is downloaded and placed into `runtime/tools/astracore/<RID>`:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/prepare-astracore-sources.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/prepare-native-deps.ps1 -Component astracore
 ```
 
-The Windows build requires MSYS2 CLANG64 and the dependencies listed in
-`.github/workflows/astracore.yml`:
+The runtime verification verifies `astracore-runtime.json`, checks every hash and required FFmpeg capability, inspects native imports, and enforces the runtime limit. To package AstraCat with AstraCore:
 
 ```powershell
-$env:ASTRACAT_MSYS2_BASH = 'C:\msys64\usr\bin\bash.exe'
-powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-astracore.ps1
-```
-
-The build produces `artifacts/astracore/win-x64`, generates
-`astracore-runtime.json`, verifies every hash and required FFmpeg capability,
-rejects a statically bloated libmpv, inspects native imports, and enforces a
-200 MiB runtime limit. To package it:
-
-```powershell
-./package-release.ps1 -Version 0.1.2-DEV -AstraCoreDir artifacts/astracore/win-x64
+./package-release.ps1 -NativeAot -Version 0.1.2-DEV -AstraCoreDir runtime/tools/astracore/win-x64
 ```
 
 Formal packages contain only `runtime/tools/astracore/<RID>`. The environment

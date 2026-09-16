@@ -5,7 +5,6 @@ on:
   push:
     branches: [ main ]
     paths:
-      - "native/astracore/**"
       - "Services/**"
       - "Views/**"
       - "Controls/**"
@@ -29,34 +28,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install native build dependencies & FFmpeg/mpv libraries
+      - name: Install dependencies for Native AOT
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            cmake \
-            ninja-build \
-            pkg-config \
-            libavformat-dev \
-            libavcodec-dev \
-            libavutil-dev \
-            libswresample-dev \
-            libavfilter-dev \
-            libmpv-dev \
-            ffmpeg \
-            libegl1-mesa-dev \
-            libgl1-mesa-dev
+          sudo apt-get install -y build-essential zlib1g-dev
 
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-
-      - name: Build AstraCore Native C ABI (Linux)
-        run: |
-          cmake -B build-native -S native/astracore -DCMAKE_BUILD_TYPE=Release -G Ninja
-          cmake --build build-native
-          ctest --test-dir build-native --output-on-failure
 
       - name: Publish AstraCat with Native AOT
         run: |
@@ -68,7 +48,7 @@ jobs:
       - name: Assemble Linux distribution layout
         run: |
           mkdir -p dist/AstraCat-linux-x64/runtime/tools/astracore/linux-x64
-          cp build-native/libAstraCore.Native.so dist/AstraCat-linux-x64/runtime/tools/astracore/linux-x64/
+          curl -sL https://github.com/Cuptu/AstraCore/releases/download/v0.1.0/AstraCore-linux-x64.tar.gz | tar -xz -C dist/AstraCat-linux-x64/runtime/tools/astracore/linux-x64/
           mkdir -p dist/AstraCat-linux-x64/engines
           cp engines/asr_worker.py dist/AstraCat-linux-x64/engines/
           cp LICENSE dist/AstraCat-linux-x64/
@@ -98,8 +78,8 @@ jobs:
           cat << 'EOF' > "$APPDIR/AppRun"
           #!/bin/sh
           HERE="$(dirname "$(readlink -f "${0}")")"
-          export PATH="${HERE}/usr/bin:${PATH}"
-          export LD_LIBRARY_PATH="${HERE}/usr/lib:${HERE}/usr/bin:${LD_LIBRARY_PATH}"
+          export PATH="${HERE}/usr/bin:${HERE}/usr/bin/runtime/tools/astracore/linux-x64:${PATH}"
+          export LD_LIBRARY_PATH="${HERE}/usr/bin/runtime/tools/astracore/linux-x64:${HERE}/usr/lib:${HERE}/usr/bin:${LD_LIBRARY_PATH}"
           exec "${HERE}/usr/bin/AstraCat" "$@"
           EOF
           chmod +x "$APPDIR/AppRun"
@@ -154,20 +134,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies via Homebrew
-        run: |
-          brew install ffmpeg mpv pkg-config cmake ninja
-
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-
-      - name: Build AstraCore Native C ABI (macOS)
-        run: |
-          cmake -B build-native -S native/astracore -DCMAKE_BUILD_TYPE=Release -G Ninja
-          cmake --build build-native
-          ctest --test-dir build-native --output-on-failure
 
       - name: Publish AstraCat with Native AOT
         run: |
@@ -179,7 +149,7 @@ jobs:
       - name: Package macOS App Bundle and DMG
         run: |
           mkdir -p dist/AstraCat-osx-arm64/runtime/tools/astracore/osx-arm64
-          cp build-native/libAstraCore.Native.dylib dist/AstraCat-osx-arm64/runtime/tools/astracore/osx-arm64/
+          curl -sL https://github.com/Cuptu/AstraCore/releases/download/v0.1.0/AstraCore-osx-arm64.tar.gz | tar -xz -C dist/AstraCat-osx-arm64/runtime/tools/astracore/osx-arm64/
           mkdir -p dist/AstraCat-osx-arm64/engines
           cp engines/asr_worker.py dist/AstraCat-osx-arm64/engines/
           cp LICENSE dist/AstraCat-osx-arm64/
@@ -197,7 +167,7 @@ jobs:
           cp -r dist/AstraCat-osx-arm64/* "$MACOS_DIR/"
           chmod +x "$MACOS_DIR/AstraCat"
 
-          cp build-native/libAstraCore.Native.dylib "$FRAMEWORKS_DIR/" || true
+          cp dist/AstraCat-osx-arm64/runtime/tools/astracore/osx-arm64/*.dylib "$FRAMEWORKS_DIR/" || true
 
           cat << 'EOF' > "$CONTENTS_DIR/Info.plist"
           <?xml version="1.0" encoding="UTF-8"?>
