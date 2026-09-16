@@ -113,7 +113,7 @@ meson setup "$build_root/mpv" "$ASTRACORE_MPV_SOURCE" \
     -Dlua=disabled -Djavascript=disabled -Dcplugins=disabled \
     -Dcdda=disabled -Ddvdnav=disabled -Dlibbluray=disabled -Ddvbin=disabled \
     -Dlibavdevice=disabled -Dplain-gl=enabled -Dgl=enabled -Degl=enabled \
-    -Dvulkan=disabled -Dwayland=disabled -Dx11=enabled \
+    -Dvulkan=disabled \
     -Dvaapi=enabled -Dvdpau=enabled \
     -Dalsa=enabled -Dpulse=enabled \
     -Diconv=enabled -Djpeg=disabled -Dlcms2=enabled -Dzlib=enabled
