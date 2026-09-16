@@ -28,6 +28,10 @@ prefix="$build_root/prefix"
 rm -rf "$build_root" "$ASTRACORE_OUTPUT"
 brew_prefix="$(brew --prefix 2>/dev/null || echo /opt/homebrew)"
 export PKG_CONFIG_PATH="$prefix/lib/pkgconfig:$brew_prefix/lib/pkgconfig:$brew_prefix/share/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+for d in "$brew_prefix"/opt/*/lib/pkgconfig; do
+    [[ -d "$d" ]] && PKG_CONFIG_PATH="$d:$PKG_CONFIG_PATH"
+done
+export PKG_CONFIG_PATH
 export DYLD_LIBRARY_PATH="$prefix/lib:${DYLD_LIBRARY_PATH:-}"
 
 
@@ -38,7 +42,7 @@ meson setup "$build_root/harfbuzz" "$ASTRACORE_HARFBUZZ_SOURCE" \
     -Dtests=disabled -Dutilities=disabled -Ddocs=disabled -Ddoc_tests=false \
     -Dintrospection=disabled -Dglib=disabled -Dgobject=disabled \
     -Dcairo=disabled -Dchafa=disabled -Dpng=disabled -Dicu=disabled \
-    -Dgraphite=disabled -Dgraphite2=disabled -Dfreetype=enabled \
+    -Dgraphite=disabled -Dgraphite2=disabled -Dfreetype=disabled \
     -Dcoretext=enabled -Dzlib=enabled
 meson compile -C "$build_root/harfbuzz"
 meson install -C "$build_root/harfbuzz"
@@ -83,9 +87,9 @@ pushd "$build_root/ffmpeg" >/dev/null
 "$ASTRACORE_FFMPEG_SOURCE/configure" \
     --prefix="$prefix" \
     --enable-shared --disable-static --disable-debug --disable-doc --disable-ffplay \
-    --enable-gpl --enable-version3 \
+    --enable-gpl --enable-version3 --disable-vulkan \
     --disable-everything --disable-avdevice --enable-network \
-    --enable-libass --disable-fontconfig --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libdav1d \
+    --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libdav1d \
     --enable-libx264 --enable-libx265 --enable-libsvtav1 \
     --enable-videotoolbox --enable-audiotoolbox \
     --enable-protocol=file,pipe,http,https,httpproxy,tcp,tls,crypto,data \
@@ -98,8 +102,7 @@ pushd "$build_root/ffmpeg" >/dev/null
     --enable-bsf=aac_adtstoasc,av1_frame_merge,av1_metadata,h264_mp4toannexb,hevc_mp4toannexb,vp9_superframe \
     --enable-hwaccel=h264_videotoolbox,hevc_videotoolbox,av1_videotoolbox,vp9_videotoolbox,mpeg2_videotoolbox \
     --disable-libbluray --disable-libdvdnav --disable-libdvdread \
-    --disable-lv2 --disable-frei0r --disable-librist --disable-libsrt --disable-libssh --disable-libzmq \
-    --extra-ldflags="-Wl,-rpath,@loader_path"
+    --disable-lv2 --disable-frei0r --disable-librist --disable-libsrt --disable-libssh --disable-libzmq
 make -j"$(sysctl -n hw.ncpu)"
 make install
 popd >/dev/null

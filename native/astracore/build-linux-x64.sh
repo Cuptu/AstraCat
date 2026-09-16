@@ -30,7 +30,7 @@ meson setup "$build_root/harfbuzz" "$ASTRACORE_HARFBUZZ_SOURCE" \
     -Dtests=disabled -Dutilities=disabled -Ddocs=disabled -Ddoc_tests=false \
     -Dintrospection=disabled -Dglib=disabled -Dgobject=disabled \
     -Dcairo=disabled -Dchafa=disabled -Dpng=disabled -Dicu=disabled \
-    -Dgraphite=disabled -Dgraphite2=disabled -Dfreetype=enabled \
+    -Dgraphite=disabled -Dgraphite2=disabled -Dfreetype=disabled \
     -Dzlib=enabled
 meson compile -C "$build_root/harfbuzz"
 meson install -C "$build_root/harfbuzz"
@@ -100,8 +100,7 @@ pushd "$build_root/ffmpeg" >/dev/null
     --enable-hwaccel=h264_vaapi,hevc_vaapi,av1_vaapi,vp9_vaapi,mpeg2_vaapi,h264_vdpau,hevc_vdpau,vp9_vdpau,mpeg2_vdpau \
     --disable-libbluray --disable-libdvdnav --disable-libdvdread \
     --disable-lv2 --disable-frei0r --disable-librist --disable-libsrt --disable-libssh --disable-libzmq \
-    --extra-cflags="-fPIC" \
-    --extra-ldflags="-Wl,-rpath,'\$\$ORIGIN'"
+    --extra-cflags="-fPIC"
 make -j"$(nproc)"
 make install
 popd >/dev/null
