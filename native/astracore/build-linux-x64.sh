@@ -120,7 +120,7 @@ meson setup "$build_root/mpv" "$ASTRACORE_MPV_SOURCE" \
     -Dcdda=disabled -Ddvdnav=disabled -Dlibbluray=disabled -Ddvbin=disabled \
     -Dlibavdevice=disabled -Dplain-gl=enabled -Dgl=enabled -Degl=enabled \
     -Dvulkan=disabled \
-    -Dvaapi=enabled -Dvdpau=enabled \
+    -Dvaapi=disabled -Dvdpau=disabled \
     -Dalsa=enabled -Dpulse=enabled \
     -Diconv=enabled -Djpeg=disabled -Dlcms2=enabled -Dzlib=enabled
 meson compile -C "$build_root/mpv"
@@ -154,16 +154,21 @@ done
 if command -v patchelf >/dev/null; then
     echo "==> Setting \$ORIGIN RUNPATH with patchelf..."
     for binary in "$ASTRACORE_OUTPUT"/*; do
-        if [[ -f "$binary" && ! -L "$binary" && -x "$binary" ]]; then
-            patchelf --set-rpath '$ORIGIN' "$binary" 2>/dev/null || true
+        if [[ -f "$binary" && ! -L "$binary" ]]; then
+            if (command -v file >/dev/null && file "$binary" 2>/dev/null | grep -q "ELF") || [[ "$binary" == *.so* || -x "$binary" ]]; then
+                chmod u+w "$binary" 2>/dev/null || true
+                patchelf --set-rpath '$ORIGIN' "$binary" 2>/dev/null || true
+            fi
         fi
     done
 fi
 
 echo "==> Stripping binaries..."
 for binary in "$ASTRACORE_OUTPUT"/*; do
-    if [[ -f "$binary" && ! -L "$binary" && -x "$binary" ]]; then
-        strip --strip-unneeded "$binary" 2>/dev/null || true
+    if [[ -f "$binary" && ! -L "$binary" ]]; then
+        if (command -v file >/dev/null && file "$binary" 2>/dev/null | grep -q "ELF") || [[ "$binary" == *.so* || -x "$binary" ]]; then
+            strip --strip-unneeded "$binary" 2>/dev/null || true
+        fi
     fi
 done
 
