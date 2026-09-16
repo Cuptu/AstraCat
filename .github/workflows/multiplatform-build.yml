@@ -9,6 +9,8 @@ on:
       - "Services/**"
       - "Views/**"
       - "Controls/**"
+      - "scripts/**"
+      - "package-release.ps1"
       - "AstraCat.csproj"
       - "Program.cs"
       - "App.axaml*"
