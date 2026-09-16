@@ -14,6 +14,10 @@
 *.otf binary
 
 # GitHub Linguist language statistics overrides
+*.ps1 linguist-vendored
+*.sh linguist-vendored
+*.cmd linguist-vendored
+*.bat linguist-vendored
 scripts/** linguist-vendored
 engines/** linguist-vendored
 native/** linguist-vendored
