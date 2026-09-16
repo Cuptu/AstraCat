@@ -138,6 +138,7 @@ meson setup "$build_root/mpv" "$mpv_build_source" \
     -Dlua=disabled -Djavascript=disabled -Dcplugins=disabled \
     -Dcdda=disabled -Ddvdnav=disabled -Dlibbluray=disabled -Ddvbin=disabled \
     -Dlibavdevice=disabled -Dplain-gl=enabled -Dgl=enabled -Dgl-win32=enabled \
+    -Dvulkan=disabled \
     -Degl=disabled -Degl-angle=enabled -Degl-angle-lib=disabled -Degl-angle-win32=enabled \
     -Dd3d-hwaccel=enabled -Dwin32-threads=enabled -Dwasapi=enabled \
     -Diconv=enabled -Djpeg=disabled -Dlcms2=enabled -Dzlib=enabled

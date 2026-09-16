@@ -110,10 +110,12 @@ meson setup "$build_root/mpv" "$ASTRACORE_MPV_SOURCE" \
     -Dcplayer=false -Dlibmpv=true -Dbuild-date=false -Dtests=false \
     -Dlua=disabled -Djavascript=disabled -Dcplugins=disabled \
     -Dlibavdevice=disabled -Dplain-gl=enabled -Dgl=enabled -Dgl-cocoa=enabled \
+    -Dcocoa=enabled -Dvulkan=disabled \
     -Dvideotoolbox-gl=enabled -Dcoreaudio=enabled \
     -Dswift-build=disabled \
     -Diconv=enabled -Djpeg=disabled -Dlcms2=enabled -Dzlib=enabled
 meson compile -C "$build_root/mpv"
+
 
 meson install -C "$build_root/mpv"
 
@@ -145,6 +147,27 @@ for bin in "$ASTRACORE_OUTPUT"/*; do
         [[ -f "$dylib" && ! -L "$dylib" ]] || continue
         name="$(basename "$dylib")"
         install_name_tool -change "$prefix/lib/$name" "@rpath/$name" "$bin" 2>/dev/null || true
+    done
+done
+
+echo "==> Resolving and bundling external non-system dependencies (Homebrew/local)..."
+changed=1
+while [[ $changed -eq 1 ]]; do
+    changed=0
+    for bin in "$ASTRACORE_OUTPUT"/*; do
+        [[ -f "$bin" && ! -L "$bin" ]] || continue
+        for dep in $(otool -L "$bin" 2>/dev/null | awk '{print $1}' | grep -E '^/(opt/homebrew|usr/local)' || true); do
+            dep_name="$(basename "$dep")"
+            if [[ ! -f "$ASTRACORE_OUTPUT/$dep_name" ]]; then
+                echo "Bundling non-system dependency: $dep"
+                cp -L "$dep" "$ASTRACORE_OUTPUT/$dep_name"
+                chmod 755 "$ASTRACORE_OUTPUT/$dep_name"
+                install_name_tool -id "@rpath/$dep_name" "$ASTRACORE_OUTPUT/$dep_name" 2>/dev/null || true
+                install_name_tool -add_rpath "@loader_path" "$ASTRACORE_OUTPUT/$dep_name" 2>/dev/null || true
+                changed=1
+            fi
+            install_name_tool -change "$dep" "@rpath/$dep_name" "$bin" 2>/dev/null || true
+        done
     done
 done
 

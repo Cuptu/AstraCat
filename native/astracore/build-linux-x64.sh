@@ -113,10 +113,12 @@ meson setup "$build_root/mpv" "$ASTRACORE_MPV_SOURCE" \
     -Dlua=disabled -Djavascript=disabled -Dcplugins=disabled \
     -Dcdda=disabled -Ddvdnav=disabled -Dlibbluray=disabled -Ddvbin=disabled \
     -Dlibavdevice=disabled -Dplain-gl=enabled -Dgl=enabled -Degl=enabled \
+    -Dvulkan=disabled -Dwayland=disabled -Dx11=enabled \
     -Dvaapi=enabled -Dvdpau=enabled \
     -Dalsa=enabled -Dpulse=enabled \
     -Diconv=enabled -Djpeg=disabled -Dlcms2=enabled -Dzlib=enabled
 meson compile -C "$build_root/mpv"
+
 meson install -C "$build_root/mpv"
 
 echo "==> Building AstraCore.Native C ABI v4..."
@@ -133,6 +135,14 @@ for libdir in "$prefix/lib" "$prefix/lib64" "$prefix/lib/x86_64-linux-gnu"; do
     if [[ -d "$libdir" ]]; then
         cp -P "$libdir"/lib*.so* "$ASTRACORE_OUTPUT/" 2>/dev/null || true
     fi
+done
+
+for libname in libx264 libSvtAv1Enc libfreetype libfribidi libfontconfig liblcms2 libunibreak; do
+    for f in /usr/lib/x86_64-linux-gnu/${libname}.so* /usr/lib/${libname}.so*; do
+        if [[ -f "$f" || -L "$f" ]]; then
+            cp -P "$f" "$ASTRACORE_OUTPUT/" 2>/dev/null || true
+        fi
+    done
 done
 
 if command -v patchelf >/dev/null; then
