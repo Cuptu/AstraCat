@@ -99,7 +99,19 @@ internal static class MediaToolLocator
             Path.Combine(appRoot, "runtime", "python", "bin", "python3"),
             Path.Combine(Environment.CurrentDirectory, "runtime", "python", "bin", "python3"),
         };
-        return FindFile(candidates.ToArray()) ?? Find("python", candidates.ToArray());
+
+        var pythonLocation = Environment.GetEnvironmentVariable("pythonLocation");
+        if (!string.IsNullOrWhiteSpace(pythonLocation))
+        {
+            var trimmedLocation = pythonLocation.Trim().Trim('"');
+            candidates.Add(Path.Combine(trimmedLocation, pyName));
+            candidates.Add(Path.Combine(trimmedLocation, "bin", "python3"));
+            candidates.Add(Path.Combine(trimmedLocation, "Scripts", pyName));
+        }
+
+        return FindFile(candidates.ToArray())
+            ?? FindFromSystemPath("python")
+            ?? FindFromSystemPath("python3");
     }
 
     public static string? FindDownloadWorker()
@@ -141,15 +153,8 @@ internal static class MediaToolLocator
         return null;
     }
 
-    private static string? Find(string command, params string[] candidates)
+    public static string? FindFromSystemPath(string command)
     {
-        foreach (var candidate in candidates)
-            if (!string.IsNullOrWhiteSpace(candidate) && File.Exists(candidate))
-                return Path.GetFullPath(candidate);
-
-        if (!string.Equals(Environment.GetEnvironmentVariable("ASTRACAT_ALLOW_SYSTEM_MEDIA_TOOLS"), "1", StringComparison.Ordinal))
-            return null;
-
         lock (PathLookupSync)
         {
             if (PathLookupCache.TryGetValue(command, out var cached)) return cached;
@@ -174,5 +179,16 @@ internal static class MediaToolLocator
             PathLookupCache[command] = null;
             return null;
         }
+    }
+
+    private static string? Find(string command, params string[] candidates)
+    {
+        var found = FindFile(candidates);
+        if (found is not null) return found;
+
+        if (!string.Equals(Environment.GetEnvironmentVariable("ASTRACAT_ALLOW_SYSTEM_MEDIA_TOOLS"), "1", StringComparison.Ordinal))
+            return null;
+
+        return FindFromSystemPath(command);
     }
 }

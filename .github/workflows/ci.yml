@@ -28,6 +28,11 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install Python dependencies for unit tests
+        run: |
+          python -m pip install --upgrade pip
+          pip install yt-dlp
+
       - name: Audit repository contents
         shell: pwsh
         run: ./scripts/audit-repository.ps1
@@ -42,4 +47,6 @@ jobs:
         run: dotnet test tests/AstraCat.Tests/AstraCat.Tests.csproj -c Release
 
       - name: Check Python worker syntax
-        run: python -m py_compile engines/asr_worker.py
+        run: |
+          python -m py_compile engines/asr_worker.py
+          python -m py_compile engines/download_worker.py
