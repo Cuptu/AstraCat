@@ -26,7 +26,6 @@
   <ItemGroup>
     <AvaloniaResource Include="Assets\**"
                       Exclude="Assets\Badges\**;Assets\Brand\AstraCat.svg;Assets\Brand\AstraCatLogo.svg;Assets\Brand\AstraCatLogo.png;Assets\Brand\AstraCatLogo-source.png;Assets\Models\qwen.jpg;Assets\Models\systran.png;Assets\Models\whisper.png" />
-    <None Include="Assets\Fonts\**" CopyToOutputDirectory="PreserveNewest" />
     <None Include="runtime\tools\**" Exclude="runtime\tools\mpv\**" CopyToOutputDirectory="PreserveNewest" />
     <None Include="runtime\tools\mpv\libmpv-2.dll"
           Condition="$([MSBuild]::IsOSPlatform('Windows')) and Exists('runtime\tools\mpv\libmpv-2.dll')"

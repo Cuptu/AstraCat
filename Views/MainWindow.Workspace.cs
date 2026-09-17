@@ -2669,11 +2669,7 @@ public partial class MainWindow
         return new TextBlock
         {
             Text = "字幕 Aa",
-            Foreground = foreground,
-            FontFamily = string.Equals(style.FontFamily, "HarmonyOS Sans SC", StringComparison.OrdinalIgnoreCase)
-                ? new FontFamily("avares://AstraCat/Assets/Fonts#HarmonyOS Sans SC, Inter, PingFang SC, Microsoft YaHei, sans-serif")
-                : new FontFamily(string.IsNullOrWhiteSpace(style.FontFamily) ? "Microsoft YaHei UI" : style.FontFamily),
-            FontSize = Math.Clamp(style.FontSize * 0.42, 15, 22),
+            FontFamily = new FontFamily(string.IsNullOrWhiteSpace(style.FontFamily) ? SubtitleStyleDefinition.DefaultFontFamily : style.FontFamily),
             FontWeight = style.Bold ? FontWeight.Bold : FontWeight.Normal,
             FontStyle = style.Italic ? FontStyle.Italic : FontStyle.Normal,
             TextDecorations = style.Underline ? TextDecorations.Underline : null,

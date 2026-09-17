@@ -178,11 +178,6 @@ public sealed class MpvPlayerService : IAsyncDisposable
         SetOption("sub-auto", "no");
         SetOption("sub-ass-override", "no");
         SetOption("sub-ass-scale-with-window", "yes");
-        var fontsDir = MediaToolLocator.FindFontsDirectory();
-        if (!string.IsNullOrWhiteSpace(fontsDir))
-        {
-            SetOption("sub-fonts-dir", fontsDir);
-        }
 
         Check(native.Initialize(handle), "mpv_initialize");
         native.RequestLogMessages(handle, logLevel);

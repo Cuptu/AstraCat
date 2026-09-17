@@ -674,13 +674,7 @@ public sealed class MediaExportService
             arguments.AddRange(["-map", "0:v:0?"]);
             var filters = new List<string>();
             if (!string.IsNullOrWhiteSpace(options.SubtitlePath) && File.Exists(options.SubtitlePath))
-            {
-                var fontsDir = MediaToolLocator.FindFontsDirectory();
-                var fontsArg = !string.IsNullOrWhiteSpace(fontsDir)
-                    ? $":fontsdir='{EscapeFilterPath(fontsDir)}'"
-                    : string.Empty;
-                filters.Add($"subtitles=filename='{EscapeFilterPath(options.SubtitlePath)}'{fontsArg}");
-            }
+                filters.Add($"subtitles=filename='{EscapeFilterPath(options.SubtitlePath)}'");
             if (ScaleFilter(options) is { } scale) filters.Add(scale);
             if (filters.Count > 0) arguments.AddRange(["-vf", string.Join(',', filters)]);
             var frameRate = options.FrameRate switch
