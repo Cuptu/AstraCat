@@ -9,9 +9,9 @@
 [![Status](https://img.shields.io/badge/Status-DEV-F59E0B?style=flat-square&labelColor=1F2937)](https://github.com/Cuptu/AstraCat)
 [![Release](https://img.shields.io/github/v/release/Cuptu/AstraCat?include_prereleases&style=flat-square&logo=github&label=Release&color=blue)](https://github.com/Cuptu/AstraCat/releases)
 [![Downloads](https://img.shields.io/github/downloads/Cuptu/AstraCat/total?style=flat-square&logo=github&label=Downloads&color=brightgreen)](https://github.com/Cuptu/AstraCat/releases)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D4?style=flat-square&logo=linux&logoColor=white)](https://github.com/Cuptu/AstraCat)
-[![.NET](https://img.shields.io/badge/.NET-10-512BD4?style=flat-square&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
-[![Avalonia](https://img.shields.io/badge/Avalonia-12.1.1-8B44AC?style=flat-square)](https://avaloniaui.net/)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-0078D4?style=flat-square&logo=electron&logoColor=white)](https://github.com/Cuptu/AstraCat)
+[![Language](https://img.shields.io/badge/Language-C%23-0078D4?style=flat-square)](https://dotnet.microsoft.com/languages/csharp)
+[![Avalonia](https://img.shields.io/badge/Avalonia-12.1.1-0078D4?style=flat-square&logo=avaloniaui&logoColor=white)](https://avaloniaui.net/)
 [![Acceleration](https://img.shields.io/badge/Acceleration-CUDA%20%7C%20CPU-76B900?style=flat-square&logo=nvidia&logoColor=white&labelColor=555)](https://developer.nvidia.com/cuda-toolkit)
 [![License](https://img.shields.io/badge/License-GPL--3.0--only-green?style=flat-square)](./LICENSE)
 
@@ -352,21 +352,47 @@ AstraCat/
 3. 检查取消、失败回退和重复执行；
 4. 不提交 API Key、模型、Python 环境、项目数据和构建产物。
 
-## 使用的项目
+## 鸣谢与支持
 
-- [Avalonia](https://avaloniaui.net/)：桌面界面
-- [FFmpeg](https://ffmpeg.org/)：媒体探测、音轨处理和导出
-- [mpv](https://mpv.io/)：媒体播放
-- [faster-whisper](https://github.com/SYSTRAN/faster-whisper)：Whisper 推理
-- [PyTorch](https://pytorch.org/)：Qwen3-ASR、Parakeet 等模型的运行环境
-- [Hugging Face](https://huggingface.co/)：模型目录和权重分发
+### 核心技术框架
 
-各组件和模型使用各自的许可证。发布二进制文件时，需要同时遵守相应的再分发与署名要求。
+<a href="https://avaloniaui.net/" target="_blank" rel="noopener noreferrer">
+  <img src="./docs/images/avalonia-banner.png" alt="Avalonia UI" width="100%" />
+</a>
+
+AstraCat 深度基于 **[Avalonia UI](https://avaloniaui.net/)** 打造现代化高性能跨平台桌面体验，在此特别向 Avalonia 核心团队及全球开源社区致以崇高敬意！
+
+### 开源许可证支持
+
+<a href="https://jb.gg/OpenSourceSupport" target="_blank" rel="noopener noreferrer">
+  <img src="./docs/images/jetbrains.svg" width="96" alt="JetBrains" />
+</a>
+
+特别感谢 **[JetBrains](https://www.jetbrains.com/?from=AstraCat)** 通过 [免费开源项目许可证计划 (Free Open Source License)](https://jb.gg/OpenSourceSupport) 为 AstraCat 核心开发团队提供专业 IDE 及全套开发工具链支持。
+
+### 赞助商与支持者
+
+感谢以下平台与赞助商对开源生态的大力支持：
+
+<a href="https://www.digitalocean.com/" target="_blank" rel="noopener noreferrer">
+  <img src="./docs/images/digitalocean.svg" width="190" alt="DigitalOcean" />
+</a>
+
+### 使用的开源项目
+
+- [Avalonia](https://avaloniaui.net/)：跨平台桌面界面框架与现代化渲染引擎
+- [FFmpeg](https://ffmpeg.org/)：音视频多媒体编解码、音频探测与字幕合成烧录
+- [mpv / libmpv](https://mpv.io/)：硬件加速媒体播放核心引擎
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp)：跨平台音视频流下载与解析
+- [faster-whisper](https://github.com/SYSTRAN/faster-whisper)：高效本地 Whisper 语音推理引擎
+- [PyTorch](https://pytorch.org/)：深度学习模型与语音算法运行时
+- [Hugging Face](https://huggingface.co/)：开放模型目录与权重分发托管
+
+各组件和模型遵循各自的开源许可证。发布二进制文件时，均遵守相应的再分发与署名要求。
 
 ## 许可证
 
-原生媒体运行时的统一构建、字幕接口边界、多平台策略和 FFmpeg CLI
-迁移路线见 [AstraCore media runtime](docs/ASTRACORE.md)。
+原生媒体运行时的统一构建、字幕接口边界、多平台策略和 FFmpeg CLI 迁移路线见 [AstraCore media runtime](docs/ASTRACORE.md)。
 
 AstraCat 使用 [GNU General Public License v3.0](LICENSE)，SPDX 标识为 `GPL-3.0-only`。
 
@@ -376,3 +402,8 @@ SPDX-License-Identifier: GPL-3.0-only
 ```
 
 项目地址：<https://github.com/Cuptu/AstraCat>
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=Cuptu/AstraCat&type=Date)](https://star-history.com/#Cuptu/AstraCat&Date)
+

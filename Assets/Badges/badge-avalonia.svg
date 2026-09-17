@@ -1,20 +1,26 @@
-﻿<svg xmlns="http://www.w3.org/2000/svg" width="178" height="34" viewBox="0 0 178 34">
-  <clipPath id="r">
-    <rect width="178" height="34" rx="10"/>
-  </clipPath>
-
-  <g clip-path="url(#r)">
-    <rect width="100" height="34" fill="#555"/>
-    <rect x="100" width="78" height="34" fill="#8B44AC"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="202" height="28" viewBox="0 0 202 28">
+  <defs>
+    <linearGradient id="b" x2="0" y2="100%">
+      <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+      <stop offset="1" stop-opacity=".1"/>
+    </linearGradient>
+    <clipPath id="a">
+      <rect width="202" height="28" rx="4" fill="#fff"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#a)">
+    <rect width="112" height="28" fill="#555"/>
+    <rect x="112" width="90" height="28" fill="#0078D4"/>
+    <rect width="202" height="28" fill="url(#b)"/>
   </g>
-
-  <text x="12" y="23" fill="white"
-        font-family="Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="bold">
-    Avalonia
-  </text>
-
-  <text x="110" y="23" fill="white"
-        font-family="Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="bold">
-    12.1.1
-  </text>
+  <!-- AvaloniaUI Icon -->
+  <svg x="12" y="5" width="18" height="18" viewBox="0 0 24 24" fill="#fff">
+    <path d="M12.034 8.208c-2.003 0-3.627 1.696-3.627 3.789s1.624 3.789 3.627 3.789 3.627-1.697 3.627-3.79-1.624-3.788-3.627-3.788m-7.392 2.067c.72.211 1.248.902 1.248 1.722s-.528 1.51-1.248 1.721c.752 3.54 3.776 6.188 7.392 6.188 1.316 0 2.554-.35 3.632-.967v.914h3.94v-7.528a5 5 0 0 0 0-.224v-.104c0-4.369-3.39-7.91-7.572-7.91-3.616 0-6.64 2.648-7.392 6.188m-.5 2.982c.67 0 1.212-.567 1.212-1.266s-.542-1.265-1.212-1.265-1.211.566-1.211 1.265c0 .7.542 1.266 1.211 1.266M20.682 24H11.8C5.549 23.887.515 18.556.515 12c0-6.627 5.143-12 11.487-12 6.241 0 11.32 5.2 11.483 11.678l-.02 9.743C23.3 22.876 22.12 24 20.683 24"/>
+  </svg>
+  <g fill="#fff" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="12" font-weight="600">
+    <text x="73" y="18.5" fill="#010101" fill-opacity=".3">Avalonia</text>
+    <text x="73" y="17.5">Avalonia</text>
+    <text x="157" y="18.5" fill="#010101" fill-opacity=".3">12.1.1</text>
+    <text x="157" y="17.5">12.1.1</text>
+  </g>
 </svg>

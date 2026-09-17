@@ -1,0 +1,93 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:AstraCat"
+        xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+        x:Class="AstraCat.DownloadMediaWindow"
+        x:CompileBindings="False"
+        Width="640" Height="480" MinWidth="580" MinHeight="420"
+        WindowStartupLocation="CenterOwner" Background="#F5F6F8"
+        Title="从链接导入媒体">
+  <Grid RowDefinitions="52,*,56">
+    <!-- Header -->
+    <Border Grid.Row="0" Padding="20,0" Background="White" BorderBrush="#E2E5E9" BorderThickness="0,0,0,1">
+      <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+        <StackPanel>
+          <TextBlock Text="从链接导入媒体" FontSize="15" FontWeight="Bold" Foreground="#171B21" />
+          <TextBlock Text="基于内置 yt-dlp 引擎，支持 YouTube、Bilibili、播客等平台" FontSize="11" Foreground="#7A8490" Margin="0,2,0,0" />
+        </StackPanel>
+        <Border Grid.Column="1" Padding="8,3" CornerRadius="10" Background="#EFF6FF" BorderBrush="#DBEAFE" BorderThickness="1">
+          <TextBlock Text="yt-dlp 离线内置" FontSize="10.5" FontWeight="SemiBold" Foreground="#2563EB" />
+        </Border>
+      </Grid>
+    </Border>
+
+    <!-- Main Content -->
+    <ScrollViewer Grid.Row="1" Padding="20,16">
+      <StackPanel Spacing="14">
+        <!-- URL Input Card -->
+        <Border Background="White" CornerRadius="10" Padding="16" BorderBrush="#E2E5E9" BorderThickness="1">
+          <StackPanel Spacing="10">
+            <TextBlock Text="视频或音频链接 (URL)" FontSize="12.5" FontWeight="SemiBold" Foreground="#2D3748" />
+            <Grid ColumnDefinitions="*,8,Auto,8,Auto">
+              <TextBox x:Name="UrlInput" PlaceholderText="粘贴在线视频或音频地址 (如 https://...)" VerticalAlignment="Center" Height="36" />
+              <Button Grid.Column="2" x:Name="PasteButton" Content="粘贴" Click="PasteButton_OnClick" Height="36" Padding="12,0" />
+              <Button Grid.Column="4" x:Name="InspectButton" Classes="primary" Content="解析" Click="InspectButton_OnClick" Height="36" Padding="14,0" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- Inspect Info Preview Card -->
+        <Border x:Name="InspectCard" IsVisible="False" Background="White" CornerRadius="10" Padding="16" BorderBrush="#3B82F6" BorderThickness="1">
+          <Grid ColumnDefinitions="Auto,12,*">
+            <Border Grid.Column="0" Width="96" Height="64" CornerRadius="6" Background="#E2E8F0" ClipToBounds="True">
+              <icons:MaterialIcon Kind="VideoOutline" Width="36" Height="36" Foreground="#94A3B8" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <StackPanel Grid.Column="2" Spacing="4" VerticalAlignment="Center">
+              <TextBlock x:Name="MediaTitleText" Text="标题" FontWeight="Bold" FontSize="13" TextTrimming="CharacterEllipsis" MaxLines="2" />
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock x:Name="MediaDurationText" Text="时长: --:--" FontSize="11" Foreground="#64748B" />
+                <TextBlock x:Name="MediaUploaderText" Text="作者: -" FontSize="11" Foreground="#64748B" />
+                <TextBlock x:Name="MediaSubtitlesBadge" Text="含在线字幕" FontSize="10" Foreground="#059669" Background="#ECFDF5" Padding="4,1" Margin="2,0,0,0" />
+              </StackPanel>
+            </StackPanel>
+          </Grid>
+        </Border>
+
+        <!-- Options Card -->
+        <Border Background="White" CornerRadius="10" Padding="16" BorderBrush="#E2E5E9" BorderThickness="1">
+          <StackPanel Spacing="12">
+            <TextBlock Text="下载选项" FontSize="12.5" FontWeight="SemiBold" Foreground="#2D3748" />
+            <StackPanel Orientation="Horizontal" Spacing="20">
+              <RadioButton x:Name="ModeVideoRadio" GroupName="DownloadMode" Content="完整视频 (MP4，音画合流)" IsChecked="True" />
+              <RadioButton x:Name="ModeAudioRadio" GroupName="DownloadMode" Content="极速仅音频 (MP3，快速转录)" />
+            </StackPanel>
+            <CheckBox x:Name="DownloadSubsCheck" Content="若有在线字幕同时下载（.srt）" IsChecked="True" Margin="0,2,0,0" />
+
+            <Grid ColumnDefinitions="Auto,8,*" Margin="0,4,0,0">
+              <TextBlock Text="网络代理 (可选):" FontSize="11.5" Foreground="#64748B" VerticalAlignment="Center" />
+              <TextBox Grid.Column="2" x:Name="ProxyInput" PlaceholderText="如 http://127.0.0.1:7890 (国内访问国外站点时填写)" Height="32" FontSize="11" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <!-- Progress Area -->
+        <StackPanel x:Name="ProgressArea" IsVisible="False" Spacing="8">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock x:Name="StatusText" Text="准备下载..." FontSize="12" Foreground="#475569" />
+            <TextBlock Grid.Column="1" x:Name="SpeedText" Text="-- MB/s" FontSize="12" Foreground="#64748B" />
+          </Grid>
+          <ProgressBar x:Name="DownloadBar" Height="8" Minimum="0" Maximum="100" Value="0" CornerRadius="4" />
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+
+    <!-- Footer Action Buttons -->
+    <Border Grid.Row="2" Padding="20,0" Background="White" BorderBrush="#E2E5E9" BorderThickness="0,1,0,0">
+      <Grid ColumnDefinitions="*,Auto,10,Auto" VerticalAlignment="Center">
+        <TextBlock x:Name="ErrorSummaryText" Foreground="#E11D48" FontSize="11.5" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+        <Button Grid.Column="1" x:Name="CancelButton" Content="取消" Click="CancelButton_OnClick" Width="80" Height="34" />
+        <Button Grid.Column="3" x:Name="StartDownloadButton" Classes="primary" Content="开始下载并导入" Click="StartDownloadButton_OnClick" Width="130" Height="34" />
+      </Grid>
+    </Border>
+  </Grid>
+</Window>

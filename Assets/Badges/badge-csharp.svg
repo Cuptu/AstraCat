@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="138" height="28" viewBox="0 0 138 28">
+  <defs>
+    <linearGradient id="b" x2="0" y2="100%">
+      <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+      <stop offset="1" stop-opacity=".1"/>
+    </linearGradient>
+    <clipPath id="a">
+      <rect width="138" height="28" rx="4" fill="#fff"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#a)">
+    <rect width="82" height="28" fill="#555"/>
+    <rect x="82" width="56" height="28" fill="#0078D4"/>
+    <rect width="138" height="28" fill="url(#b)"/>
+  </g>
+  <g fill="#fff" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="12" font-weight="600">
+    <text x="41" y="18.5" fill="#010101" fill-opacity=".3">Language</text>
+    <text x="41" y="17.5">Language</text>
+    <text x="110" y="18.5" fill="#010101" fill-opacity=".3">C#</text>
+    <text x="110" y="17.5">C#</text>
+  </g>
+</svg>

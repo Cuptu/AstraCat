@@ -57,8 +57,36 @@ internal static class AotJson
 [JsonSerializable(typeof(int))]
 [JsonSerializable(typeof(long))]
 [JsonSerializable(typeof(double))]
+[JsonSerializable(typeof(DownloadInspectResult))]
+[JsonSerializable(typeof(DownloadProgressEvent))]
+[JsonSerializable(typeof(DownloadCompletedResult))]
 internal partial class AppJsonContext : JsonSerializerContext;
 
 public sealed record MediaAudioTrack(long Id, string Title, string Language, bool IsDefault);
 public sealed record EmbeddedSubtitleTrack(int Index, string CodecName, string Language, string Title);
 public sealed record SceneDetectionResult(IReadOnlyList<double> CutSeconds);
+
+public sealed record DownloadInspectResult(
+    string? Id,
+    string? Title,
+    double Duration,
+    string? Thumbnail,
+    string? Uploader,
+    string? WebpageUrl,
+    List<string>? Subtitles,
+    List<string>? AutomaticCaptions,
+    bool HasSubtitles);
+
+public sealed record DownloadProgressEvent(
+    double Percent,
+    long DownloadedBytes,
+    long TotalBytes,
+    double? Speed,
+    double? Eta,
+    string? Status);
+
+public sealed record DownloadCompletedResult(
+    string? MediaPath,
+    string? SubtitlePath,
+    string? Title,
+    double Duration);

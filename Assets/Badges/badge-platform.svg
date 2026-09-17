@@ -1,20 +1,31 @@
-﻿<svg xmlns="http://www.w3.org/2000/svg" width="245" height="34" viewBox="0 0 245 34">
-  <clipPath id="r">
-    <rect width="245" height="34" rx="10"/>
-  </clipPath>
-
-  <g clip-path="url(#r)">
-    <rect width="100" height="34" fill="#555"/>
-    <rect x="100" width="145" height="34" fill="#0877d1"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="326" height="28" viewBox="0 0 326 28">
+  <defs>
+    <linearGradient id="b" x2="0" y2="100%">
+      <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+      <stop offset="1" stop-opacity=".1"/>
+    </linearGradient>
+    <clipPath id="a">
+      <rect width="326" height="28" rx="4" fill="#fff"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#a)">
+    <rect width="112" height="28" fill="#555"/>
+    <rect x="112" width="214" height="28" fill="#0078D4"/>
+    <rect width="326" height="28" fill="url(#b)"/>
   </g>
-
-  <text x="12" y="23" fill="white"
-        font-family="Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="bold">
-    Platform
-  </text>
-
-  <text x="110" y="23" fill="white"
-        font-family="Arial, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="18" font-weight="bold">
-    Windows x64
-  </text>
+  <g fill="none" stroke="#fff" stroke-width="1.3" transform="translate(12, 4) scale(0.85)">
+    <circle cx="12" cy="12" r="2" fill="#fff" stroke="none"/>
+    <ellipse cx="12" cy="12" rx="10.5" ry="4.2"/>
+    <ellipse cx="12" cy="12" rx="10.5" ry="4.2" transform="rotate(60 12 12)"/>
+    <ellipse cx="12" cy="12" rx="10.5" ry="4.2" transform="rotate(120 12 12)"/>
+    <circle cx="21.5" cy="12" r="1.3" fill="#fff" stroke="none"/>
+    <circle cx="7.8" cy="20" r="1.3" fill="#fff" stroke="none"/>
+    <circle cx="7.2" cy="4.5" r="1.3" fill="#fff" stroke="none"/>
+  </g>
+  <g fill="#fff" text-anchor="middle" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" font-size="12" font-weight="600">
+    <text x="72" y="18.5" fill="#010101" fill-opacity=".3">Platform</text>
+    <text x="72" y="17.5">Platform</text>
+    <text x="219" y="18.5" fill="#010101" fill-opacity=".3">Windows | macOS | Linux</text>
+    <text x="219" y="17.5">Windows | macOS | Linux</text>
+  </g>
 </svg>

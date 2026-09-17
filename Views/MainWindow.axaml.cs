@@ -685,6 +685,57 @@ public partial class MainWindow : Window
         await OpenProjectAsync(project.Id);
     }
 
+    private async void ImportFromUrl_OnClick(object? sender, RoutedEventArgs e)
+    {
+        var dialog = new DownloadMediaWindow();
+        var result = await dialog.ShowDialog<DownloadMediaResult?>(this);
+        if (result is null || string.IsNullOrWhiteSpace(result.MediaPath)) return;
+
+        var suggestedName = string.IsNullOrWhiteSpace(result.Title)
+            ? Path.GetFileNameWithoutExtension(result.MediaPath)
+            : result.Title;
+        if (string.IsNullOrWhiteSpace(suggestedName)) suggestedName = $"字幕项目 {_projects.Count + 1}";
+        var name = await PromptForProjectNameAsync(suggestedName);
+        if (string.IsNullOrWhiteSpace(name)) return;
+
+        var project = new CaptionProject
+        {
+            Name = name.Trim(),
+            SourceVideoPath = result.MediaPath,
+            TranscriptionModelId = _appSettings.DefaultTranscriptionModelId,
+            TranscriptionLanguage = _appSettings.DefaultSourceLanguage,
+            TranscriptionDevice = _appSettings.DefaultComputeDevice,
+            EnableVadFilter = _appSettings.VadFilterDefault,
+            VadThreshold = _appSettings.VadThreshold,
+            EnableWordTimestamps = _appSettings.WordTimestampsDefault,
+            EnableSubtitleProcessing = true,
+            EnableLlmSegmentation = true,
+            EnglishWordLimit = _appSettings.MaxWordsEnglishDefault > 0 ? _appSettings.MaxWordsEnglishDefault : 12,
+            EnableSubtitleProofreading = false,
+            EnableWebTerminologyResearch = false,
+            CorrectSubtitles = false,
+            ReflectTranslation = true,
+            UpdatedAt = DateTimeOffset.Now
+        };
+        _projects.Insert(0, project);
+        EnsureProjectDirectory(project.Id);
+
+        if (!string.IsNullOrWhiteSpace(result.SubtitlePath) && File.Exists(result.SubtitlePath))
+        {
+            try
+            {
+                var targetSrt = Path.Combine(ProjectDirectory(project.Id), "raw.srt");
+                File.Copy(result.SubtitlePath, targetSrt, overwrite: true);
+                project.SubtitlePath = targetSrt;
+            }
+            catch { }
+        }
+
+        SaveProjects();
+        RebuildProjectSidebar();
+        await OpenProjectAsync(project.Id);
+    }
+
     private async void Project_OnClick(object? sender, RoutedEventArgs e)
     {
         if (sender is Button { Tag: string projectId }) await OpenProjectAsync(projectId);

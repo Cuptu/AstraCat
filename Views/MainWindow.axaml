@@ -1631,7 +1631,13 @@
       <Border x:Name="SidebarBorder" Grid.Column="0" Background="#F4F4F5" BorderThickness="0" ClipToBounds="True">
         <Grid x:Name="SidebarRoot" RowDefinitions="Auto,*,Auto" Margin="8,14,8,14">
           <Button Classes="sidebarCreate" Width="44" Height="44" Padding="0" HorizontalAlignment="Center"
-                  Click="NewTask_OnClick" ToolTip.Tip="新建任务">
+                  Click="NewTask_OnClick" ToolTip.Tip="新建任务（右键可从链接导入）">
+            <Button.ContextMenu>
+              <ContextMenu>
+                <MenuItem Header="选择本地音视频..." Click="NewTask_OnClick" />
+                <MenuItem Header="从网络链接导入..." Click="ImportFromUrl_OnClick" />
+              </ContextMenu>
+            </Button.ContextMenu>
             <icons:MaterialIcon Kind="PlusCircleOutline" Width="20" Height="20" HorizontalAlignment="Center" VerticalAlignment="Center" />
           </Button>
 
@@ -1686,12 +1692,20 @@
                   <TextBlock Text="主页" Classes="pageTitle" />
                   <TextBlock Text="下午好，今天也让字幕变得简单一点。" Classes="muted" FontSize="13" Margin="0,7,0,0" />
                 </StackPanel>
-                <Button Grid.Column="1" Classes="primary" Click="NewTask_OnClick">
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+                  <Button Classes="secondary" Click="ImportFromUrl_OnClick" ToolTip.Tip="通过在线音视频链接导入">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <icons:MaterialIcon Kind="LinkVariant" Width="16" Height="16" Foreground="#2563EB" />
+                      <TextBlock Text="从链接导入" />
+                    </StackPanel>
+                  </Button>
+                  <Button Classes="primary" Click="NewTask_OnClick">
                   <StackPanel Orientation="Horizontal" Spacing="8">
                     <icons:MaterialIcon Kind="Plus" Width="18" Height="18" />
                     <TextBlock Text="新建任务" />
                   </StackPanel>
                 </Button>
+                </StackPanel>
               </Grid>
 
               <UniformGrid Columns="3" Margin="0,26,0,0">
