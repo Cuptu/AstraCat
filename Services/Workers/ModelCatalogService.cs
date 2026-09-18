@@ -39,11 +39,11 @@ public sealed partial class ModelCatalogService : IDisposable
 
     private static readonly CatalogEntry[] Entries =
     [
-        new("whisper-tiny", "Systran/faster-whisper-tiny", "whisper"),
-        new("whisper-base", "Systran/faster-whisper-base", "whisper"),
-        new("whisper-small", "Systran/faster-whisper-small", "whisper"),
-        new("whisper-medium", "Systran/faster-whisper-medium", "whisper"),
-        new("whisper-large-v3", "Systran/faster-whisper-large-v3", "whisper"),
+        new("whisper-tiny", "openai/whisper-tiny", "whisper"),
+        new("whisper-base", "openai/whisper-base", "whisper"),
+        new("whisper-small", "openai/whisper-small", "whisper"),
+        new("whisper-medium", "openai/whisper-medium", "whisper"),
+        new("whisper-large-v3", "openai/whisper-large-v3", "whisper"),
         new("whisper-v3-turbo", "openai/whisper-large-v3-turbo", "whisper"),
         new("qwen-0.6b", "Qwen/Qwen3-ASR-0.6B", "qwen"),
         new("qwen-1.7b", "Qwen/Qwen3-ASR-1.7B", "qwen"),

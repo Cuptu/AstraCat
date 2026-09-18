@@ -6,11 +6,11 @@
 
 ## 1. 架构与平台对照表
 
-| 目标平台 (RID) | 推荐环境 | UI / 图形渲染 | 视频解码 (libmpv) | 硬件编码 (AstraCore) | Python / AI 运行时 |
+| 目标平台 (RID) | 推荐环境 | UI / 图形渲染 | 视频解码 (libmpv) | 硬件编码 (AstraCore) | AI 推理运行时 (sherpa-onnx) |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Windows x64** (`win-x64`) | Windows 10/11 64-bit | Avalonia ANGLE (D3D11 EGL) | D3D11VA, D3D11VA-copy, 软件 | NVENC, QSV, AMF, x264, x265, SVT-AV1 | 私有嵌入版 Python 3.12 + 私有 CUDA 12 |
-| **Linux x64** (`linux-x64`) | Ubuntu 22.04+ / Debian 12+ / Arch | Avalonia X11 / Wayland (OpenGL) | VAAPI, NVDEC, 软件 | VAAPI, NVENC, QSV, x264, x265, SVT-AV1 | 系统 Python 3.12 (`python3 -m venv`) + Linux CUDA / CPU |
-| **macOS Apple Silicon** (`osx-arm64`) | macOS 13 (Ventura)+ | Avalonia Metal / OpenGL | VideoToolbox, 软件 | VideoToolbox, x264, x265, SVT-AV1 | 系统/Homebrew Python 3.12 + Apple Silicon MPS / CPU |
+| **Windows x64** (`win-x64`) | Windows 10/11 64-bit | Avalonia ANGLE (D3D11 EGL) | D3D11VA, D3D11VA-copy, 软件 | NVENC, QSV, AMF, x264, x265, SVT-AV1 | 进程内 sherpa-onnx (CPU / 可选 CUDA 12) |
+| **Linux x64** (`linux-x64`) | Ubuntu 22.04+ / Debian 12+ / Arch | Avalonia X11 / Wayland (OpenGL) | VAAPI, NVDEC, 软件 | VAAPI, NVENC, QSV, x264, x265, SVT-AV1 | 进程内 sherpa-onnx (CPU / Linux CUDA) |
+| **macOS Apple Silicon** (`osx-arm64`) | macOS 13 (Ventura)+ | Avalonia Metal / OpenGL | VideoToolbox, 软件 | VideoToolbox, x264, x265, SVT-AV1 | 进程内 sherpa-onnx (CPU / CoreML) |
 
 ---
 
@@ -54,8 +54,6 @@ mkdir -p dist/AstraCat-linux-x64/runtime/tools/astracore/linux-x64
 curl -sL https://github.com/Cuptu/AstraCore/releases/download/v0.1.0/AstraCore-linux-x64.tar.gz | tar -xz -C dist/AstraCat-linux-x64/runtime/tools/astracore/linux-x64/
 
 # 4. 组装绿色运行包
-mkdir -p dist/AstraCat-linux-x64/engines
-cp engines/asr_worker.py dist/AstraCat-linux-x64/engines/
 cp LICENSE README.md THIRD_PARTY_NOTICES.md dist/AstraCat-linux-x64/
 cd dist && tar -czvf AstraCat-linux-x64.tar.gz AstraCat-linux-x64
 ```
@@ -78,8 +76,6 @@ mkdir -p dist/AstraCat-osx-arm64/runtime/tools/astracore/osx-arm64
 curl -sL https://github.com/Cuptu/AstraCore/releases/download/v0.1.0/AstraCore-osx-arm64.tar.gz | tar -xz -C dist/AstraCat-osx-arm64/runtime/tools/astracore/osx-arm64/
 
 # 3. 组装绿色运行包
-mkdir -p dist/AstraCat-osx-arm64/engines
-cp engines/asr_worker.py dist/AstraCat-osx-arm64/engines/
 cp LICENSE README.md THIRD_PARTY_NOTICES.md dist/AstraCat-osx-arm64/
 cd dist && tar -czvf AstraCat-osx-arm64.tar.gz AstraCat-osx-arm64
 ```

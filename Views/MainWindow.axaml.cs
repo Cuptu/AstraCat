@@ -31,6 +31,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Ellipse = Avalonia.Controls.Shapes.Ellipse;
+using AstraCat.Services.Speech;
 
 namespace AstraCat;
 
@@ -208,10 +209,7 @@ public partial class MainWindow : Window
         string Title,
         string Subtitle,
         string WeightDescription,
-        string AssetUri,
-        string RuntimeId,
-        string RuntimeTitle,
-        string RuntimeDescription);
+        string AssetUri);
 
     private sealed record ModelConfigurationSnapshot(
         string ModelId,
@@ -328,25 +326,25 @@ public partial class MainWindow : Window
     private static readonly IReadOnlyDictionary<string, ModelDeploymentInfo> ModelDeployments =
         new Dictionary<string, ModelDeploymentInfo>(StringComparer.OrdinalIgnoreCase)
         {
-            ["whisper-tiny"] = new("whisper-tiny", "Whisper Tiny", "99 种语言 · 最快 · 适合低资源设备", "75 MB", "avares://AstraCat/Assets/Models/openai.png", "whisper-runtime", "Faster-Whisper / CTranslate2", "Whisper 推理运行库"),
-            ["whisper-base"] = new("whisper-base", "Whisper Base", "速度与精度入门平衡", "145 MB", "avares://AstraCat/Assets/Models/openai.png", "whisper-runtime", "Faster-Whisper / CTranslate2", "Whisper 推理运行库"),
-            ["whisper-small"] = new("whisper-small", "Whisper Small", "均衡 · 分段时间戳", "464 MB", "avares://AstraCat/Assets/Models/openai.png", "whisper-runtime", "Faster-Whisper / CTranslate2", "Whisper 推理运行库"),
-            ["whisper-medium"] = new("whisper-medium", "Whisper Medium", "高精度 · 中等显存占用", "1.53 GB", "avares://AstraCat/Assets/Models/openai.png", "whisper-runtime", "Faster-Whisper / CTranslate2", "Whisper 推理运行库"),
-            ["whisper-large-v3"] = new("whisper-large-v3", "Whisper Large V3", "高精度 · 建议 6 GB 显存", "3.1 GB", "avares://AstraCat/Assets/Models/openai.png", "whisper-runtime", "Faster-Whisper / CTranslate2", "Whisper 推理运行库"),
-            ["whisper-v3-turbo"] = new("whisper-v3-turbo", "Whisper Large V3 Turbo", "99 种语言 · Large V3 高速精简版", "1.62 GB", "avares://AstraCat/Assets/Models/openai.png", "nvidia-runtime", "Transformers / OpenAI Whisper", "Whisper Turbo 推理环境"),
-            ["qwen-0.6b"] = new("qwen-0.6b", "Qwen3-ASR 0.6B", "30 种语言 + 22 种中文方言", "1.8 GB", "avares://AstraCat/Assets/Models/qwen-hf.jpeg", "qwen-runtime", "PyTorch / Qwen-ASR", "支持 CPU；安装 CUDA 版 PyTorch 后启用 GPU"),
-            ["qwen-1.7b"] = new("qwen-1.7b", "Qwen3-ASR 1.7B", "高精度 · 建议 8 GB 显存", "4.7 GB", "avares://AstraCat/Assets/Models/qwen-hf.jpeg", "qwen-runtime", "PyTorch / Qwen-ASR", "支持 CPU；安装 CUDA 版 PyTorch 后启用 GPU"),
-            ["funasr-nano"] = new("funasr-nano", "Fun-ASR Nano 2512", "方言、热词、时间戳、实时识别", "1.99 GB", "avares://AstraCat/Assets/Models/funaudiollm.png", "funasr-runtime", "FunASR / PyTorch", "FunASR 隔离推理环境"),
-            ["sensevoice-small"] = new("sensevoice-small", "SenseVoice Small", "低延迟 · 情绪与声音事件", "944 MB", "avares://AstraCat/Assets/Models/funaudiollm.png", "funasr-runtime", "FunASR / PyTorch", "SenseVoice 隔离推理环境"),
-            ["nvidia-parakeet-v3"] = new("nvidia-parakeet-v3", "NVIDIA Parakeet TDT 0.6B V3", "25 种语言 · 高吞吐 · 词级时间戳", "2.6 GB", "avares://AstraCat/Assets/Models/nvidia.png", "nvidia-runtime", "NVIDIA Transformers", "Parakeet / Canary 推理环境"),
-            ["nvidia-canary-v2"] = new("nvidia-canary-v2", "NVIDIA Canary 1B V2", "25 种语言 · 识别与语音翻译", "6.36 GB", "avares://AstraCat/Assets/Models/nvidia.png", "nemo-runtime", "NVIDIA NeMo / PyTorch", "Canary 隔离推理环境"),
-            ["moss-0.9b"] = new("moss-0.9b", "MOSS Transcribe-Diarize 0.9B", "长音频 · 时间戳 · 说话人分离", "1.83 GB", "avares://AstraCat/Assets/Models/openmoss.png", "moss-runtime", "MOSS / Transformers", "MOSS 隔离推理环境")
+            ["whisper-tiny"] = new("whisper-tiny", "Whisper Tiny", "99 种语言 · 最快 · 适合低资源设备", "75 MB", "avares://AstraCat/Assets/Models/openai.png"),
+            ["whisper-base"] = new("whisper-base", "Whisper Base", "速度与精度入门平衡", "145 MB", "avares://AstraCat/Assets/Models/openai.png"),
+            ["whisper-small"] = new("whisper-small", "Whisper Small", "均衡 · 分段时间戳", "464 MB", "avares://AstraCat/Assets/Models/openai.png"),
+            ["whisper-medium"] = new("whisper-medium", "Whisper Medium", "高精度 · 中等显存占用", "1.53 GB", "avares://AstraCat/Assets/Models/openai.png"),
+            ["whisper-large-v3"] = new("whisper-large-v3", "Whisper Large V3", "高精度 · 建议 6 GB 显存", "3.1 GB", "avares://AstraCat/Assets/Models/openai.png"),
+            ["whisper-v3-turbo"] = new("whisper-v3-turbo", "Whisper Large V3 Turbo", "99 种语言 · Large V3 高速精简版", "1.62 GB", "avares://AstraCat/Assets/Models/openai.png"),
+            ["qwen-0.6b"] = new("qwen-0.6b", "Qwen3-ASR 0.6B", "30 种语言 + 22 种中文方言", "1.8 GB", "avares://AstraCat/Assets/Models/qwen-hf.jpeg"),
+            ["qwen-1.7b"] = new("qwen-1.7b", "Qwen3-ASR 1.7B", "高精度 · 建议 8 GB 显存", "4.7 GB", "avares://AstraCat/Assets/Models/qwen-hf.jpeg"),
+            ["funasr-nano"] = new("funasr-nano", "Fun-ASR Nano 2512", "方言、热词、时间戳、实时识别", "1.99 GB", "avares://AstraCat/Assets/Models/funaudiollm.png"),
+            ["sensevoice-small"] = new("sensevoice-small", "SenseVoice Small", "低延迟 · 情绪与声音事件", "944 MB", "avares://AstraCat/Assets/Models/funaudiollm.png"),
+            ["nvidia-parakeet-v3"] = new("nvidia-parakeet-v3", "NVIDIA Parakeet TDT 0.6B V3", "25 种语言 · 高吞吐 · 词级时间戳", "2.6 GB", "avares://AstraCat/Assets/Models/nvidia.png"),
+            ["nvidia-canary-v2"] = new("nvidia-canary-v2", "NVIDIA Canary 1B V2", "25 种语言 · 识别与语音翻译", "6.36 GB", "avares://AstraCat/Assets/Models/nvidia.png"),
+            ["moss-0.9b"] = new("moss-0.9b", "MOSS Transcribe-Diarize 0.9B", "长音频 · 时间戳 · 说话人分离", "1.83 GB", "avares://AstraCat/Assets/Models/openmoss.png")
         };
 
     private readonly MotionService _motion = new();
     private readonly DeploymentManager _deployment = new();
     private readonly ModelCatalogService _modelCatalog;
-    private readonly AsrWorkerClient _asrWorker;
+    private readonly SherpaSpeechEngine _sherpaSpeech = new();
     private readonly DispatcherTimer _catalogSpinnerTimer = new() { Interval = TimeSpan.FromMilliseconds(16) };
     private readonly HashSet<Button> _motionButtons = new();
     private readonly HashSet<Border> _motionModelRows = new();
@@ -425,7 +423,6 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         _modelCatalog = new ModelCatalogService(Path.Combine(_deployment.RuntimeRoot, "cache"));
-        _asrWorker = new AsrWorkerClient(_deployment);
         InitializeComponent();
         InitializeWorkspace();
         LoadTranslationSettings();
@@ -515,7 +512,7 @@ public partial class MainWindow : Window
             _catalogSpinnerTimer.Stop();
             _projectTranscriptionLogSpinnerTimer.Stop();
             _projectTranscriptionLogFlushTimer.Stop();
-            _asrWorker.Dispose();
+            _sherpaSpeech.Dispose();
             _modelCatalog.Dispose();
             foreach (var task in _downloadUiTasks.Values)
             {
@@ -3653,101 +3650,65 @@ public partial class MainWindow : Window
         "qwen-1.7b" => "qwen3-asr-1.7b",
         "nvidia-parakeet-v3" => "nvidia-parakeet-tdt-0.6b-v3",
         "whisper-tiny" or "whisper-base" or "whisper-small" or "whisper-medium" or
-            "whisper-large-v3" => modelId.ToLowerInvariant(),
-        _ => throw new NotSupportedException("当前模型尚未完成本地转录适配，请选择 Whisper、Qwen3-ASR 或 NVIDIA Parakeet")
+            "whisper-large-v3" or "whisper-v3-turbo" => modelId.ToLowerInvariant(),
+        _ => SherpaModelRegistry.TryGetProfile(modelId, out var p) ? p!.Id : throw new NotSupportedException("当前模型尚未完成本地转录适配，请选择 Whisper、Qwen3-ASR 或 NVIDIA Parakeet")
     };
 
     private static bool SupportsLocalTranscription(string modelId) => modelId.ToLowerInvariant() switch
     {
         "qwen-0.6b" or "qwen-1.7b" or "nvidia-parakeet-v3" or
         "whisper-tiny" or "whisper-base" or "whisper-small" or "whisper-medium" or
-        "whisper-large-v3" => true,
-        _ => false
+        "whisper-large-v3" or "whisper-v3-turbo" => true,
+        _ => SherpaModelRegistry.TryGetProfile(modelId, out _)
     };
 
     private async Task<List<SubtitleSegment>> RunLocalTranscriptionAsync(
         string engine, CaptionProject project,
         IProgress<(int Percent, string Message, string? LogLine)> progress, CancellationToken token)
     {
-        var workerPath = Path.Combine(_deployment.AppRoot, "engines", "asr_worker.py");
-        var runtimeId = RuntimeIdForWorkerEngine(engine);
-        var pythonPath = _deployment.GetRuntimePythonExecutable(runtimeId);
-        if (!File.Exists(pythonPath) || !File.Exists(workerPath))
-            throw new FileNotFoundException("本地识别环境不完整，请在模型配置中修复运行环境");
-
-        var language = string.IsNullOrWhiteSpace(project.TranscriptionLanguage) ||
-                       project.TranscriptionLanguage == "自动检测"
-            ? null
-            : project.TranscriptionLanguage;
-        var requestConfig = new Dictionary<string, object?>
+        if (!SherpaModelRegistry.TryGetProfile(engine, out var sherpaProfile) &&
+            (string.IsNullOrWhiteSpace(project.TranscriptionModelId) || !SherpaModelRegistry.TryGetProfile(project.TranscriptionModelId, out sherpaProfile)))
         {
-            ["device"] = project.TranscriptionDevice,
-            ["language"] = language,
-            ["precision"] = project.TranscriptionPrecision,
-            ["beamSize"] = project.TranscriptionBeamSize,
-            ["temperature"] = project.TranscriptionTemperature,
-            ["vad"] = project.EnableVadFilter,
-            ["vadThreshold"] = project.VadThreshold,
-            ["vadMinSilence"] = project.VadMinSilence,
-            ["vadSpeechPad"] = project.VadSpeechPad,
-            ["maxTokens"] = project.TranscriptionMaxTokens,
-            ["timestamps"] = project.EnableWordTimestamps,
-            ["hotwords"] = project.TranscriptionHotwords,
-            ["diarization"] = project.EnableDiarization,
-            ["speakerCount"] = project.TranscriptionSpeakerCount,
-            ["emotionDetection"] = project.EnableEmotion,
-            ["audioEventDetection"] = project.EnableAudioEvent,
-            ["chunkSeconds"] = project.TranscriptionChunkSeconds
-        };
-
-        var request = new Dictionary<string, object?> {
-            ["id"] = Guid.NewGuid().ToString("N"),
-            ["command"] = "transcribe",
-            ["engine"] = engine,
-            ["audio"] = project.SourceVideoPath,
-            ["language"] = language,
-            ["device"] = project.TranscriptionDevice,
-            ["config"] = requestConfig
-        };
-        var workerProgress = new Progress<AsrWorkerProgress>(update =>
-            progress.Report((update.Percent, update.Message, update.LogLine)));
-        var responseLine = await _asrWorker.TranscribeAsync(
-            runtimeId, workerPath, AotJson.Serialize(request), workerProgress, token);
-
-        using var document = JsonDocument.Parse(responseLine);
-        var root = document.RootElement;
-        if (!root.TryGetProperty("ok", out var ok) || !ok.GetBoolean())
-        {
-            var message = root.TryGetProperty("error", out var error) && error.TryGetProperty("message", out var errorText)
-                ? errorText.GetString()
-                : null;
-            throw new InvalidOperationException(string.IsNullOrWhiteSpace(message) ? "本地识别失败" : message);
+            throw new NotSupportedException($"未找到模型 '{engine}' 的原生识别配置");
         }
 
-        var result = root.GetProperty("result");
-        var output = new List<SubtitleSegment>();
-        long previousEnd = 0;
-        foreach (var item in result.GetProperty("segments").EnumerateArray())
+        if (sherpaProfile is null || !SherpaModelLocator.IsModelInstalled(sherpaProfile, out _))
         {
-            var text = item.TryGetProperty("text", out var textElement) ? textElement.GetString()?.Trim() : null;
-            if (string.IsNullOrWhiteSpace(text)) continue;
-            var start = item.TryGetProperty("start", out var startElement) && startElement.ValueKind == JsonValueKind.Number
-                ? (long)Math.Round(startElement.GetDouble() * 1000d)
-                : previousEnd;
-            var end = item.TryGetProperty("end", out var endElement) && endElement.ValueKind == JsonValueKind.Number
-                ? (long)Math.Round(endElement.GetDouble() * 1000d)
-                : start + Math.Clamp(text.Length * 110L, 1800L, 7000L);
-            if (end <= start) end = start + 1000;
-            output.Add(new SubtitleSegment
-            {
-                Index = output.Count + 1,
-                StartMilliseconds = start,
-                EndMilliseconds = end,
-                Original = text
-            });
-            previousEnd = end;
+            throw new FileNotFoundException($"模型 '{sherpaProfile?.DisplayName ?? engine}' 尚未下载或权重不完整，请在模型管理中下载。");
         }
-        return output;
+
+        if (string.IsNullOrWhiteSpace(project.SourceVideoPath) || !File.Exists(project.SourceVideoPath))
+            throw new FileNotFoundException("媒体文件不存在，请重新导入视频");
+
+        progress.Report((2, $"使用 sherpa-onnx 原生引擎转录 ({sherpaProfile.DisplayName})…", null));
+        var sherpaOptions = new SherpaTranscriptionOptions
+        {
+            Language = string.IsNullOrWhiteSpace(project.TranscriptionLanguage) || project.TranscriptionLanguage == "自动检测"
+                ? null
+                : project.TranscriptionLanguage,
+            EnableVad = project.EnableVadFilter,
+            VadThreshold = (float)project.VadThreshold,
+            VadMinSilence = (float)project.VadMinSilence,
+            Hotwords = project.TranscriptionHotwords,
+            Provider = (project.TranscriptionDevice?.ToLowerInvariant().Contains("cuda") == true ||
+                        project.TranscriptionDevice?.ToLowerInvariant().Contains("gpu") == true) ? "cuda" : "cpu",
+            NumThreads = 4
+        };
+
+        var sherpaResult = await _sherpaSpeech.TranscribeMediaAsync(
+            project.SourceVideoPath,
+            sherpaProfile.Id,
+            sherpaOptions,
+            progress,
+            token).ConfigureAwait(false);
+
+        return sherpaResult.Segments.Select(seg => new SubtitleSegment
+        {
+            Index = seg.Index,
+            StartMilliseconds = seg.StartMilliseconds,
+            EndMilliseconds = seg.EndMilliseconds,
+            Original = seg.Text
+        }).ToList();
     }
 
     private static string BuildRecognitionSrt(IEnumerable<SubtitleSegment> segments)
@@ -5376,13 +5337,6 @@ public partial class MainWindow : Window
 
     private static string DownloadTaskTitle(string id) => id switch
     {
-        "python-runtime" => "Python 3.12 基础环境",
-        "whisper-runtime" => "Faster-Whisper / CTranslate2",
-        "qwen-runtime" => "PyTorch / Qwen-ASR",
-        "nvidia-runtime" => "NVIDIA Transformers",
-        "funasr-runtime" => "FunASR / PyTorch",
-        "nemo-runtime" => "NVIDIA NeMo / PyTorch",
-        "moss-runtime" => "MOSS / Transformers",
         "whisper-tiny" => "Whisper Tiny",
         "whisper-base" => "Whisper Base",
         "whisper-small" => "Whisper Small",
@@ -5439,7 +5393,7 @@ public partial class MainWindow : Window
         }
 
         button.IsEnabled = false;
-        button.Content = id.Contains("runtime", StringComparison.Ordinal) ? "安装中…" : "下载中…";
+        button.Content = "下载中…";
         DeploymentSummaryText.Text = "正在部署组件，请保持应用开启";
         var downloadTaskId = BeginDownloadUiTask(DownloadTaskTitle(id));
         var progress = CreateDownloadProgress(downloadTaskId,
@@ -5484,14 +5438,6 @@ public partial class MainWindow : Window
         e.Handled = true;
         await OpenModelAsync(id);
     }
-
-    private static string RuntimeIdForWorkerEngine(string engine) => engine switch
-    {
-        "nvidia-parakeet-tdt-0.6b-v3" => "nvidia-runtime",
-        _ => engine.StartsWith("qwen3-asr-", StringComparison.OrdinalIgnoreCase)
-            ? "qwen-runtime"
-            : "whisper-runtime"
-    };
 
     private async Task OpenModelAsync(string id)
     {
@@ -5544,8 +5490,6 @@ public partial class MainWindow : Window
         ModelDetailTitle.Text = info.Title;
         ModelDetailSubtitle.Text = info.Subtitle;
         ModelWeightDescription.Text = info.WeightDescription;
-        ModelRuntimeTitle.Text = info.RuntimeTitle;
-        ModelRuntimeDescription.Text = info.RuntimeDescription;
         if (!ModelLogoCache.TryGetValue(info.AssetUri, out var modelLogo))
         {
             using var stream = AssetLoader.Open(new Uri(info.AssetUri));
@@ -5598,22 +5542,10 @@ public partial class MainWindow : Window
             !ModelDeployments.TryGetValue(_selectedDeploymentModelId, out var info)) return;
 
         var states = _deployment.Inspect();
-        var repairQwenAcceleration = false;
         if (states[info.Id].Installed)
         {
-            if (info.Id.StartsWith("qwen-", StringComparison.OrdinalIgnoreCase) &&
-                SelectedCudaRuntimeVersion() != "cpu")
-            {
-                var cudaStatus = await _deployment.GetCudaRuntimeStatusAsync(CancellationToken.None);
-                repairQwenAcceleration = cudaStatus.HasNvidiaGpu &&
-                    (!cudaStatus.Ready || !cudaStatus.TorchReady ||
-                     !string.Equals(cudaStatus.InstalledVersion, SelectedCudaRuntimeVersion(), StringComparison.OrdinalIgnoreCase));
-            }
-            if (!repairQwenAcceleration)
-            {
-                ModelDetailProgress.Text = "模型已经可以使用；识别参数请在“模型管理”中调整";
-                return;
-            }
+            ModelDetailProgress.Text = "模型已经可以使用；识别参数请在“模型管理”中调整";
+            return;
         }
 
         ModelDetailPrimaryAction.IsEnabled = false;
@@ -5630,45 +5562,14 @@ public partial class MainWindow : Window
         {
             var downloadSource = SelectedModelDownloadSource();
             var taskToken = _downloadUiTasks[downloadTaskId].UserCancellation.Token;
-            var cudaVersion = SelectedCudaRuntimeVersion();
-            var usesTorch = info.Id.StartsWith("qwen-", StringComparison.OrdinalIgnoreCase);
-            if ((info.Id.StartsWith("whisper-", StringComparison.OrdinalIgnoreCase) || usesTorch) && cudaVersion != "cpu")
-            {
-                var cudaStatus = await _deployment.GetCudaRuntimeStatusAsync(taskToken);
-                if (cudaStatus.HasNvidiaGpu &&
-                    (!cudaStatus.Ready || !string.Equals(cudaStatus.InstalledVersion, cudaVersion, StringComparison.OrdinalIgnoreCase)))
-                    await _deployment.InstallCudaRuntimeAsync(cudaVersion, progress, taskToken);
-                else if (!cudaStatus.HasNvidiaGpu)
-                    ((IProgress<DeploymentProgress>)progress).Report(
-                        new DeploymentProgress("未检测到 NVIDIA 显卡，将使用 CPU 识别"));
 
-                if (usesTorch && cudaStatus.HasNvidiaGpu &&
-                    (!cudaStatus.TorchReady || !string.Equals(cudaStatus.InstalledVersion, cudaVersion, StringComparison.OrdinalIgnoreCase)))
-                    await _deployment.InstallTorchCudaAsync(cudaVersion, progress, taskToken);
-            }
-            foreach (var componentId in new[] { "python-runtime", info.RuntimeId, info.Id })
-            {
-                states = _deployment.Inspect();
-                if (states[componentId].Installed) continue;
+            ModelDetailProgress.Text = $"正在下载 {info.Title}…";
+            await InstallDeploymentComponentAsync(
+                info.Id, downloadTaskId, progress, downloadSource);
+            RefreshDeploymentStatus();
+            RefreshModelDeploymentDetail();
 
-                ModelDetailProgress.Text = componentId == "python-runtime"
-                    ? "正在准备 Python 3.12 基础环境…"
-                    : componentId == info.Id
-                    ? $"正在下载 {info.Title}…"
-                    : $"正在安装 {info.RuntimeTitle}…";
-                await InstallDeploymentComponentAsync(
-                    componentId, downloadTaskId, progress, downloadSource);
-                RefreshDeploymentStatus();
-                RefreshModelDeploymentDetail();
-            }
-
-            var accelerationWarning = info.Id.StartsWith("whisper-", StringComparison.OrdinalIgnoreCase)
-                ? await _deployment.GetWhisperCudaWarningAsync(
-                    _downloadUiTasks[downloadTaskId].UserCancellation.Token)
-                : null;
-            ModelDetailProgress.Text = string.IsNullOrWhiteSpace(accelerationWarning)
-                ? "部署完成，模型已经可以使用"
-                : $"部署完成；{accelerationWarning}";
+            ModelDetailProgress.Text = "部署完成，模型已经可以使用";
             downloadSucceeded = true;
             completionStatus = ModelDetailProgress.Text;
         }
@@ -5707,11 +5608,7 @@ public partial class MainWindow : Window
 
         var states = _deployment.Inspect();
         SetDetailComponentState(ModelWeightStatus, states[info.Id], "可以下载");
-        SetDetailComponentState(ModelPythonStatus, states["python-runtime"], "将自动安装");
-        SetDetailComponentState(ModelRuntimeStatus, states[info.RuntimeId], "将自动安装");
         SetComponentAction(ModelWeightUninstallAction, states[info.Id].Installed, "卸载该模型");
-        SetComponentAction(ModelPythonProtectedAction, states["python-runtime"].Installed, "受保护", isProtected: true);
-        SetComponentAction(ModelRuntimeUninstallAction, states[info.RuntimeId].Installed, "卸载");
 
         var installed = states[info.Id].Installed;
         ModelDetailMode.Text = installed ? "模型管理" : "模型下载";
@@ -5721,7 +5618,7 @@ public partial class MainWindow : Window
         if (!ModelDetailPrimaryAction.IsEnabled) return;
         ModelDetailProgress.Text = installed
             ? "模型已加载；识别参数可在“模型管理”中调整"
-            : "将自动补齐缺失的附属运行环境";
+            : "支持 CPU 与 GPU 硬件加速，解压即用";
     }
 
     private string SelectedCudaRuntimeVersion()
@@ -6066,44 +5963,21 @@ public partial class MainWindow : Window
 
     private async void ModelComponentAction_OnClick(object? sender, RoutedEventArgs e)
     {
-        if (sender is not Button { Tag: string componentKind } action ||
+        if (sender is not Button action ||
             _selectedDeploymentModelId is null ||
             !ModelDeployments.TryGetValue(_selectedDeploymentModelId, out var info)) return;
 
-        var componentId = componentKind switch
-        {
-            "model" => info.Id,
-            "python" => "python-runtime",
-            _ => info.RuntimeId
-        };
+        var componentId = info.Id;
         var states = _deployment.Inspect();
         if (!states.TryGetValue(componentId, out var state)) return;
         if (!state.Installed)
         {
-            await InstallModelComponentAsync(action, componentKind, info);
+            await InstallModelComponentAsync(action, info);
             return;
         }
 
-        string title;
-        string message;
-        if (componentKind == "model")
-        {
-            title = $"卸载 {info.Title}？";
-            message = "将删除本地模型权重，但保留该模型的参数配置。之后重新下载时可以继续使用原有配置。";
-        }
-        else
-        {
-            var affectedModels = ModelDeployments.Values
-                .Where(model => model.RuntimeId == info.RuntimeId && states[model.Id].Installed)
-                .Select(model => model.Title)
-                .Distinct(StringComparer.Ordinal)
-                .ToArray();
-            var affectedText = affectedModels.Length == 0
-                ? "当前没有已安装模型依赖它。"
-                : $"卸载后这些模型将暂时无法运行：{string.Join("、", affectedModels)}。";
-            title = $"卸载 {info.RuntimeTitle}？";
-            message = $"这是多个模型共用的运行环境。{affectedText}模型权重和参数配置不会被删除。";
-        }
+        var title = $"卸载 {info.Title}？";
+        var message = "将删除本地模型权重，但保留该模型的参数配置。之后重新下载时可以继续使用原有配置。";
 
         if (!await ConfirmComponentUninstallAsync(title, message)) return;
 
@@ -6119,9 +5993,7 @@ public partial class MainWindow : Window
         try
         {
             await _deployment.UninstallAsync(componentId, progress, _navigation.Token);
-            ModelDetailProgress.Text = componentKind == "model"
-                ? "模型权重已卸载，参数配置已保留"
-                : "共享运行环境已卸载，模型权重和参数配置已保留";
+            ModelDetailProgress.Text = "模型权重已卸载，参数配置已保留";
         }
         catch (OperationCanceledException)
         {
@@ -6141,11 +6013,11 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task InstallModelComponentAsync(Button action, string componentKind, ModelDeploymentInfo info)
+    private async Task InstallModelComponentAsync(Button action, ModelDeploymentInfo info)
     {
         action.IsEnabled = false;
         action.Content = UninstallButtonLabel("安装中");
-        var downloadTaskId = BeginDownloadUiTask(componentKind == "model" ? info.Title : info.RuntimeTitle);
+        var downloadTaskId = BeginDownloadUiTask(info.Title);
         var progress = CreateDownloadProgress(downloadTaskId, status =>
         {
             ModelDetailProgress.Text = status;
@@ -6154,31 +6026,17 @@ public partial class MainWindow : Window
         var downloadSucceeded = false;
         var completionStatus = "安装已停止";
 
-        var components = componentKind switch
-        {
-            "model" => new[] { "python-runtime", info.RuntimeId, info.Id },
-            "python" => new[] { "python-runtime" },
-            _ => new[] { "python-runtime", info.RuntimeId }
-        };
-
         try
         {
-            foreach (var componentId in components)
+            if (!_deployment.Inspect()[info.Id].Installed)
             {
-                if (_deployment.Inspect()[componentId].Installed) continue;
                 await InstallDeploymentComponentAsync(
-                    componentId,
+                    info.Id,
                     downloadTaskId,
                     progress,
                     SelectedModelDownloadSource());
             }
-            var accelerationWarning = info.Id.StartsWith("whisper-", StringComparison.OrdinalIgnoreCase)
-                ? await _deployment.GetWhisperCudaWarningAsync(
-                    _downloadUiTasks[downloadTaskId].UserCancellation.Token)
-                : null;
-            ModelDetailProgress.Text = componentKind == "model"
-                ? string.IsNullOrWhiteSpace(accelerationWarning) ? "模型安装完成" : $"模型安装完成；{accelerationWarning}"
-                : string.IsNullOrWhiteSpace(accelerationWarning) ? "运行环境安装完成" : $"运行环境安装完成；{accelerationWarning}";
+            ModelDetailProgress.Text = "模型安装完成";
             downloadSucceeded = true;
             completionStatus = ModelDetailProgress.Text;
         }
@@ -6453,7 +6311,6 @@ public partial class MainWindow : Window
         e.Handled = true;
         var (panel, chevron, expandedHeight) = group switch
         {
-            "runtime" => (RuntimeGroupPanel, (Control)RuntimeChevron, 232d),
             "whisper" => (WhisperGroupPanel, (Control)WhisperChevron, 348d),
             "qwen" => (QwenGroupPanel, (Control)QwenChevron, 116d),
             "funasr" => (FunAsrGroupPanel, (Control)FunAsrChevron, 116d),
@@ -6470,10 +6327,6 @@ public partial class MainWindow : Window
     private void RefreshDeploymentStatus(bool keepSummaryOnError = false)
     {
         var states = _deployment.Inspect();
-        SetDeploymentRow(states["python-runtime"], PythonRuntimeBadge, PythonRuntimeStatus, PythonRuntimeAction, "修复环境");
-        SetDeploymentRow(states["whisper-runtime"], WhisperRuntimeBadge, WhisperRuntimeStatus, WhisperRuntimeAction, "安装环境");
-        SetDeploymentRow(states["qwen-runtime"], QwenRuntimeBadge, QwenRuntimeStatus, QwenRuntimeAction, "安装环境");
-        SetDeploymentRow(states["nvidia-runtime"], NvidiaRuntimeBadge, NvidiaRuntimeStatus, NvidiaRuntimeAction, "安装环境");
         SetDeploymentRow(states["whisper-tiny"], WhisperTinyBadge, WhisperTinyStatus, WhisperTinyAction, "下载模型");
         SetDeploymentRow(states["whisper-base"], WhisperBaseBadge, WhisperBaseStatus, WhisperBaseAction, "下载模型");
         SetDeploymentRow(states["whisper-small"], WhisperSmallBadge, WhisperSmallStatus, WhisperSmallAction, "下载模型");
@@ -6493,7 +6346,6 @@ public partial class MainWindow : Window
         SetRecommendedState(RecommendedWhisperText, states["whisper-v3-turbo"]);
         RefreshConfigurableModels(states);
 
-        RuntimeGroupSummary.Text = InstalledSummary(states, "python-runtime", "whisper-runtime", "qwen-runtime", "nvidia-runtime");
         WhisperGroupSummary.Text = InstalledSummary(states, "whisper-tiny", "whisper-base", "whisper-small", "whisper-medium", "whisper-large-v3", "whisper-v3-turbo");
         QwenGroupSummary.Text = InstalledSummary(states, "qwen-0.6b", "qwen-1.7b");
         FunAsrGroupSummary.Text = InstalledSummary(states, "funasr-nano", "sensevoice-small");
@@ -6788,7 +6640,9 @@ public partial class MainWindow : Window
 
     private void AddConfigurable(IReadOnlyDictionary<string, DeploymentState> states, string id, string name)
     {
-        if (states[id].Installed) _configurableModels.Add((id, name));
+        var installed = (states.TryGetValue(id, out var state) && state.Installed)
+            || (SherpaModelRegistry.TryGetProfile(id, out var profile) && profile is not null && SherpaModelLocator.IsModelInstalled(profile, out _));
+        if (installed) _configurableModels.Add((id, name));
     }
 
     private void ConfiguredModel_OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -7338,9 +7192,52 @@ public partial class MainWindow : Window
 
     private static string ShortMessage(string message)
     {
-        var line = message.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
+        if (string.IsNullOrWhiteSpace(message)) return "未知错误";
+
+        var trimmed = message.Trim();
+        if ((trimmed.StartsWith('{') && trimmed.EndsWith('}')) || (trimmed.StartsWith('[') && trimmed.EndsWith(']')))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(trimmed);
+                var root = doc.RootElement;
+                if (root.ValueKind == JsonValueKind.Object)
+                {
+                    if (root.TryGetProperty("error", out var errorElem))
+                    {
+                        if (errorElem.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(errorElem.GetString()))
+                            trimmed = errorElem.GetString()!;
+                        else if (errorElem.ValueKind == JsonValueKind.Object &&
+                                 errorElem.TryGetProperty("message", out var msgElem) &&
+                                 !string.IsNullOrWhiteSpace(msgElem.GetString()))
+                            trimmed = msgElem.GetString()!;
+                    }
+                    else if (root.TryGetProperty("message", out var msgElem) && !string.IsNullOrWhiteSpace(msgElem.GetString()))
+                    {
+                        trimmed = msgElem.GetString()!;
+                    }
+                    else if (root.TryGetProperty("detail", out var detailElem) && !string.IsNullOrWhiteSpace(detailElem.GetString()))
+                    {
+                        trimmed = detailElem.GetString()!;
+                    }
+                }
+            }
+            catch
+            {
+                // Fall back to line extraction
+            }
+        }
+
+        var lines = trimmed.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        var line = lines.LastOrDefault(l =>
+        {
+            var s = l.Trim();
+            return s.Length > 0 && s != "}" && s != "]" && s != "}," && s != "];";
+        }) ?? lines.LastOrDefault();
+
         if (string.IsNullOrWhiteSpace(line)) return "未知错误";
-        return line.Length > 72 ? line[..72] + "…" : line;
+        line = line.Trim();
+        return line.Length > 80 ? line[..80] + "…" : line;
     }
 
     private async Task NavigateTo(string page)

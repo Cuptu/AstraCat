@@ -1,0 +1,63 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:icons="clr-namespace:Material.Icons.Avalonia;assembly=Material.Icons.Avalonia"
+        x:Class="AstraCat.WebDownloadWindow"
+        x:CompileBindings="False"
+        Width="1080" Height="720" MinWidth="800" MinHeight="600"
+        WindowStartupLocation="CenterOwner" Background="#F8FAFC"
+        Title="网页视频解析与登录助手">
+  <Grid RowDefinitions="52,*,56">
+    <!-- Top Navigation Toolbar -->
+    <Border Grid.Row="0" Padding="14,0" Background="White" BorderBrush="#E2E8F0" BorderThickness="0,0,0,1">
+      <Grid ColumnDefinitions="Auto,8,Auto,8,Auto,16,*,8,Auto,16,Auto" VerticalAlignment="Center">
+        <!-- Navigation controls -->
+        <Button Grid.Column="0" x:Name="BackButton" Click="BackButton_OnClick" ToolTip.Tip="后退" Width="32" Height="32" Padding="0" CornerRadius="6">
+          <icons:MaterialIcon Kind="ArrowLeft" Width="18" Height="18" Foreground="#475569" />
+        </Button>
+        <Button Grid.Column="2" x:Name="ForwardButton" Click="ForwardButton_OnClick" ToolTip.Tip="前进" Width="32" Height="32" Padding="0" CornerRadius="6">
+          <icons:MaterialIcon Kind="ArrowRight" Width="18" Height="18" Foreground="#475569" />
+        </Button>
+        <Button Grid.Column="4" x:Name="RefreshButton" Click="RefreshButton_OnClick" ToolTip.Tip="刷新" Width="32" Height="32" Padding="0" CornerRadius="6">
+          <icons:MaterialIcon Kind="Refresh" Width="18" Height="18" Foreground="#475569" />
+        </Button>
+
+        <!-- Address Bar -->
+        <TextBox Grid.Column="6" x:Name="AddressInput" KeyDown="AddressInput_OnKeyDown" Height="34" CornerRadius="6" VerticalAlignment="Center" FontSize="12.5" />
+        <Button Grid.Column="8" x:Name="GoButton" Click="GoButton_OnClick" Content="转到" Height="34" Padding="14,0" CornerRadius="6" />
+
+        <!-- Quick Platform Shortcuts -->
+        <StackPanel Grid.Column="10" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+          <Button Click="QuickYouTube_OnClick" Content="YouTube" Padding="10,4" CornerRadius="12" FontSize="11.5" Background="#FEE2E2" Foreground="#DC2626" BorderThickness="0" />
+          <Button Click="QuickBili_OnClick" Content="哔哩哔哩" Padding="10,4" CornerRadius="12" FontSize="11.5" Background="#E0F2FE" Foreground="#0284C7" BorderThickness="0" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- Native Browser View Area -->
+    <Grid Grid.Row="1">
+      <NativeWebView x:Name="BrowserView" NavigationCompleted="BrowserView_OnNavigationCompleted" />
+      <Border x:Name="LoadingOverlay" Background="#80FFFFFF" IsVisible="False">
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
+          <ProgressBar IsIndeterminate="True" Width="160" Height="4" />
+          <TextBlock Text="正在加载页面..." FontSize="12" Foreground="#64748B" HorizontalAlignment="Center" />
+        </StackPanel>
+      </Border>
+    </Grid>
+
+    <!-- Bottom Action Bar -->
+    <Border Grid.Row="2" Padding="16,0" Background="White" BorderBrush="#E2E8F0" BorderThickness="0,1,0,0">
+      <Grid ColumnDefinitions="*,Auto,12,Auto" VerticalAlignment="Center">
+        <StackPanel VerticalAlignment="Center">
+          <TextBlock x:Name="CurrentStatusText" Text="提示：在上方网页中打开视频页面或完成登录后，点击右下角解析下载。" FontSize="12" Foreground="#64748B" TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+        <Button Grid.Column="1" Content="取消" Click="CancelButton_OnClick" Width="80" Height="34" CornerRadius="6" />
+        <Button Grid.Column="3" Classes="primary" Click="CaptureVideo_OnClick" Height="36" Padding="16,0" CornerRadius="6">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <icons:MaterialIcon Kind="Download" Width="18" Height="18" VerticalAlignment="Center" />
+            <TextBlock Text="解析并下载此页面视频" FontWeight="SemiBold" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+      </Grid>
+    </Border>
+  </Grid>
+</Window>

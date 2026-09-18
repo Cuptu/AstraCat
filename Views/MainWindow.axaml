@@ -3353,13 +3353,6 @@
               <Border Classes="deploymentCard motion-item" Margin="0,15,0,0"><StackPanel><Border Classes="deploymentCardHeader" Tag="moss" PointerReleased="DeploymentGroup_OnPointerReleased"><Grid ColumnDefinitions="*,Auto,16"><TextBlock Text="MOSS Transcribe (1)" Classes="deploymentCardTitle" VerticalAlignment="Center" /><TextBlock x:Name="MossGroupSummary" Grid.Column="1" Text="未安装" Foreground="#89919D" FontSize="11" VerticalAlignment="Center" Margin="0,0,12,0" /><icons:MaterialIcon x:Name="MossChevron" Grid.Column="2" Kind="ChevronDown" Width="14" Height="14" Foreground="#3F4651" /></Grid></Border><Border x:Name="MossGroupPanel" MaxHeight="0" IsVisible="False" IsHitTestVisible="False" ClipToBounds="True">
                 <Border x:Name="MossRow" Classes="deploymentModelRow" Height="58" VerticalAlignment="Top" Tag="moss-0.9b" PointerReleased="ModelRow_OnPointerReleased" Cursor="Hand"><Grid ColumnDefinitions="48,*,Auto"><Image Width="36" Height="36" Source="avares://AstraCat/Assets/Models/moss.png" Stretch="Uniform" /><StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="Transcribe-Diarize 0.9B" FontSize="13" FontWeight="SemiBold" /><TextBlock x:Name="MossMetadataText" Text="1.83 GB · 长音频 · 时间戳 · 说话人分离" Foreground="#89919D" FontSize="11" Margin="0,3,0,0" /></StackPanel><Border x:Name="MossBadge" IsVisible="False"><TextBlock x:Name="MossStatus" /></Border><Button x:Name="MossAction" Grid.Column="2" Classes="modelStateAction" Tag="moss-0.9b" IsHitTestVisible="False">下载</Button></Grid></Border>
               </Border></StackPanel></Border>
-
-              <Border Classes="deploymentCard motion-item" Margin="0,15,0,0" IsVisible="False"><StackPanel><Border Classes="deploymentCardHeader" Tag="runtime" PointerReleased="DeploymentGroup_OnPointerReleased"><Grid ColumnDefinitions="*,Auto,16"><TextBlock Text="运行环境 (4)" Classes="deploymentCardTitle" VerticalAlignment="Center" /><TextBlock x:Name="RuntimeGroupSummary" Grid.Column="1" Text="检查中" Foreground="#89919D" FontSize="11" VerticalAlignment="Center" Margin="0,0,12,0" /><icons:MaterialIcon x:Name="RuntimeChevron" Grid.Column="2" Kind="ChevronDown" Width="14" Height="14" Foreground="#3F4651" /></Grid></Border><Border x:Name="RuntimeGroupPanel" MaxHeight="0" IsVisible="False" IsHitTestVisible="False" ClipToBounds="True"><StackPanel Height="232" VerticalAlignment="Top">
-                <Border Classes="deploymentModelRow"><Grid ColumnDefinitions="*,Auto"><StackPanel><TextBlock Text="Python 3.12" FontSize="13" FontWeight="SemiBold" /><TextBlock Text="隔离基础环境" Foreground="#89919D" FontSize="11" Margin="0,3,0,0" /></StackPanel><Border x:Name="PythonRuntimeBadge" IsVisible="False"><TextBlock x:Name="PythonRuntimeStatus" /></Border><Button x:Name="PythonRuntimeAction" Grid.Column="1" Classes="modelStateAction" Tag="python-runtime" Click="DeploymentAction_OnClick">未下载</Button></Grid></Border>
-                <Border Classes="deploymentModelRow"><Grid ColumnDefinitions="*,Auto"><StackPanel><TextBlock Text="Faster-Whisper / CTranslate2" FontSize="13" FontWeight="SemiBold" /><TextBlock Text="Whisper 推理环境" Foreground="#89919D" FontSize="11" Margin="0,3,0,0" /></StackPanel><Border x:Name="WhisperRuntimeBadge" IsVisible="False"><TextBlock x:Name="WhisperRuntimeStatus" /></Border><Button x:Name="WhisperRuntimeAction" Grid.Column="1" Classes="modelStateAction" Tag="whisper-runtime" Click="DeploymentAction_OnClick">未下载</Button></Grid></Border>
-                <Border Classes="deploymentModelRow"><Grid ColumnDefinitions="*,Auto"><StackPanel><TextBlock Text="PyTorch CUDA" FontSize="13" FontWeight="SemiBold" /><TextBlock Text="Qwen、FunASR、MOSS 共用环境" Foreground="#89919D" FontSize="11" Margin="0,3,0,0" /></StackPanel><Border x:Name="QwenRuntimeBadge" IsVisible="False"><TextBlock x:Name="QwenRuntimeStatus" /></Border><Button x:Name="QwenRuntimeAction" Grid.Column="1" Classes="modelStateAction" Tag="qwen-runtime" Click="DeploymentAction_OnClick">未下载</Button></Grid></Border>
-                <Border Classes="deploymentModelRow"><Grid ColumnDefinitions="*,Auto"><StackPanel><TextBlock Text="NVIDIA Transformers" FontSize="13" FontWeight="SemiBold" /><TextBlock Text="Parakeet、Canary 共用推理环境" Foreground="#89919D" FontSize="11" Margin="0,3,0,0" /></StackPanel><Border x:Name="NvidiaRuntimeBadge" IsVisible="False"><TextBlock x:Name="NvidiaRuntimeStatus" /></Border><Button x:Name="NvidiaRuntimeAction" Grid.Column="1" Classes="modelStateAction" Tag="nvidia-runtime" Click="DeploymentAction_OnClick">未下载</Button></Grid></Border>
-              </StackPanel></Border></StackPanel></Border>
               </StackPanel>
 
               <Grid x:Name="ModelDeploymentDetailView" IsVisible="False" Margin="0,8,0,0"
@@ -3399,28 +3392,12 @@
                           </ComboBox>
                         </Grid>
                       </Border>
-                      <Border Height="52" Padding="18,0" BorderBrush="#ECECF1" BorderThickness="0,0,0,1">
+                      <Border Height="52" Padding="18,0">
                         <Grid ColumnDefinitions="190,*,Auto,Auto">
                           <TextBlock Text="模型权重" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
                           <TextBlock x:Name="ModelWeightDescription" Grid.Column="1" Foreground="#A2A5AA" FontSize="11" VerticalAlignment="Center" />
                           <TextBlock x:Name="ModelWeightStatus" Grid.Column="2" IsVisible="False" />
                           <Button x:Name="ModelWeightUninstallAction" Grid.Column="3" Classes="componentInstallAction" Tag="model" Click="ModelComponentAction_OnClick" />
-                        </Grid>
-                      </Border>
-                      <Border Height="52" Padding="18,0" BorderBrush="#ECECF1" BorderThickness="0,0,0,1">
-                        <Grid ColumnDefinitions="190,*,Auto,Auto">
-                          <TextBlock Text="Python 3.12" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
-                          <TextBlock Grid.Column="1" Text="隔离基础环境" Foreground="#A2A5AA" FontSize="11" VerticalAlignment="Center" />
-                          <TextBlock x:Name="ModelPythonStatus" Grid.Column="2" IsVisible="False" />
-                          <Button x:Name="ModelPythonProtectedAction" Grid.Column="3" Classes="componentInstallAction" Tag="python" Click="ModelComponentAction_OnClick" />
-                        </Grid>
-                      </Border>
-                      <Border Height="52" Padding="18,0">
-                        <Grid ColumnDefinitions="190,*,Auto,Auto">
-                          <TextBlock x:Name="ModelRuntimeTitle" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
-                          <TextBlock x:Name="ModelRuntimeDescription" Grid.Column="1" Foreground="#A2A5AA" FontSize="11" VerticalAlignment="Center" />
-                          <TextBlock x:Name="ModelRuntimeStatus" Grid.Column="2" IsVisible="False" />
-                          <Button x:Name="ModelRuntimeUninstallAction" Grid.Column="3" Classes="componentInstallAction" Tag="runtime" Click="ModelComponentAction_OnClick" />
                         </Grid>
                       </Border>
                     </StackPanel>
@@ -3470,7 +3447,7 @@
                   </Border>
                 </StackPanel>
 
-                <TextBlock x:Name="ModelDetailProgress" Grid.Row="4" Text="将自动补齐缺失的附属运行环境" Foreground="#7E8794" FontSize="11" HorizontalAlignment="Center" />
+                <TextBlock x:Name="ModelDetailProgress" Grid.Row="4" Text="支持 CPU 与 GPU 硬件加速，解压即用" Foreground="#7E8794" FontSize="11" HorizontalAlignment="Center" />
                 <Button x:Name="ModelDetailPrimaryAction" Grid.Row="6" Classes="modelDetailPrimary" Click="ModelDetailPrimary_OnClick">
                   <StackPanel Orientation="Horizontal" Spacing="8">
                     <icons:MaterialIcon x:Name="ModelDetailPrimaryIcon" Kind="DownloadOutline" Width="18" Height="18" VerticalAlignment="Center" />
@@ -3787,7 +3764,7 @@
                             <StackPanel Orientation="Horizontal" Spacing="6">
                               <TextBlock Text="统一存储目录" FontSize="13" FontWeight="SemiBold" Foreground="#111827" />
                               <icons:MaterialIcon Kind="HelpCircleOutline" Width="14" Height="14" Foreground="#9CA3AF"
-                                                  ToolTip.Tip="存放本地语音模型权重、Python 引擎环境与运行时的根目录" />
+                                                  ToolTip.Tip="存放本地语音模型权重与运行时的根目录" />
                             </StackPanel>
                             <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,2,0,0">
                               <TextBox x:Name="SettingsRuntimePathBox" IsReadOnly="True" Classes="settingPathBox" Margin="0,0,8,0" />

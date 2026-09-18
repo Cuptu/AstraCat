@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -149,19 +150,24 @@ internal static class WaveformService
         try
         {
             var bytes = await File.ReadAllBytesAsync(path, token).ConfigureAwait(false);
-            using var stream = new MemoryStream(bytes, writable: false);
-            using var reader = new BinaryReader(stream);
-            if (reader.ReadInt32() != CacheMagic || reader.ReadInt32() != CacheVersion) return null;
-            var duration = reader.ReadDouble();
-            var count = reader.ReadInt32();
+            if (bytes.Length < 20) return null;
+
+            var magic = BitConverter.ToInt32(bytes, 0);
+            var version = BitConverter.ToInt32(bytes, 4);
+            if (magic != CacheMagic || version != CacheVersion) return null;
+
+            var duration = BitConverter.ToDouble(bytes, 8);
+            var count = BitConverter.ToInt32(bytes, 16);
             if (!double.IsFinite(duration) || duration <= 0 || count <= 0 || count > MaximumPeaks ||
-                stream.Length - stream.Position != count * sizeof(float)) return null;
+                bytes.Length - 20 != count * sizeof(float)) return null;
 
             var peaks = new float[count];
+            MemoryMarshal.Cast<byte, float>(bytes.AsSpan(20)).CopyTo(peaks);
+
             for (var i = 0; i < count; i++)
             {
-                peaks[i] = reader.ReadSingle();
-                if (!float.IsFinite(peaks[i]) || peaks[i] < 0 || peaks[i] > 1) return null;
+                var p = peaks[i];
+                if (!float.IsFinite(p) || p < 0 || p > 1) return null;
             }
             return new WaveformData(duration, peaks);
         }
@@ -180,16 +186,15 @@ internal static class WaveformService
         var temporaryPath = $"{path}.{Guid.NewGuid():N}.tmp";
         try
         {
-            using var stream = new MemoryStream(20 + data.Peaks.Length * sizeof(float));
-            using (var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true))
-            {
-                writer.Write(CacheMagic);
-                writer.Write(CacheVersion);
-                writer.Write(data.DurationSeconds);
-                writer.Write(data.Peaks.Length);
-                foreach (var peak in data.Peaks) writer.Write(peak);
-            }
-            await File.WriteAllBytesAsync(temporaryPath, stream.ToArray(), token).ConfigureAwait(false);
+            var byteCount = 20 + data.Peaks.Length * sizeof(float);
+            var buffer = new byte[byteCount];
+            BitConverter.TryWriteBytes(buffer.AsSpan(0, 4), CacheMagic);
+            BitConverter.TryWriteBytes(buffer.AsSpan(4, 4), CacheVersion);
+            BitConverter.TryWriteBytes(buffer.AsSpan(8, 8), data.DurationSeconds);
+            BitConverter.TryWriteBytes(buffer.AsSpan(16, 4), data.Peaks.Length);
+            MemoryMarshal.AsBytes(data.Peaks.AsSpan()).CopyTo(buffer.AsSpan(20));
+
+            await File.WriteAllBytesAsync(temporaryPath, buffer, token).ConfigureAwait(false);
             File.Move(temporaryPath, path, overwrite: true);
         }
         finally

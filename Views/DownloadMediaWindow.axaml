@@ -13,10 +13,10 @@
       <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
         <StackPanel>
           <TextBlock Text="从链接导入媒体" FontSize="15" FontWeight="Bold" Foreground="#171B21" />
-          <TextBlock Text="基于内置 yt-dlp 引擎，支持 YouTube、Bilibili、播客等平台" FontSize="11" Foreground="#7A8490" Margin="0,2,0,0" />
+          <TextBlock Text="基于原生 C# 引擎，支持 YouTube、网络流媒体与内置浏览器登录解析" FontSize="11" Foreground="#7A8490" Margin="0,2,0,0" />
         </StackPanel>
         <Border Grid.Column="1" Padding="8,3" CornerRadius="10" Background="#EFF6FF" BorderBrush="#DBEAFE" BorderThickness="1">
-          <TextBlock Text="yt-dlp 离线内置" FontSize="10.5" FontWeight="SemiBold" Foreground="#2563EB" />
+          <TextBlock Text="纯 C# 原生内核" FontSize="10.5" FontWeight="SemiBold" Foreground="#2563EB" />
         </Border>
       </Grid>
     </Border>
@@ -28,10 +28,16 @@
         <Border Background="White" CornerRadius="10" Padding="16" BorderBrush="#E2E5E9" BorderThickness="1">
           <StackPanel Spacing="10">
             <TextBlock Text="视频或音频链接 (URL)" FontSize="12.5" FontWeight="SemiBold" Foreground="#2D3748" />
-            <Grid ColumnDefinitions="*,8,Auto,8,Auto">
+            <Grid ColumnDefinitions="*,8,Auto,8,Auto,8,Auto">
               <TextBox x:Name="UrlInput" PlaceholderText="粘贴在线视频或音频地址 (如 https://...)" VerticalAlignment="Center" Height="36" />
               <Button Grid.Column="2" x:Name="PasteButton" Content="粘贴" Click="PasteButton_OnClick" Height="36" Padding="12,0" />
-              <Button Grid.Column="4" x:Name="InspectButton" Classes="primary" Content="解析" Click="InspectButton_OnClick" Height="36" Padding="14,0" />
+              <Button Grid.Column="4" x:Name="WebAssistButton" Click="WebAssistButton_OnClick" ToolTip.Tip="在内置浏览器中浏览视频、登录账号或通过防爬验证" Height="36" Padding="10,0">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                  <icons:MaterialIcon Kind="Web" Width="16" Height="16" Foreground="#2563EB" VerticalAlignment="Center" />
+                  <TextBlock Text="网页助手" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+              <Button Grid.Column="6" x:Name="InspectButton" Classes="primary" Content="解析" Click="InspectButton_OnClick" Height="36" Padding="14,0" />
             </Grid>
           </StackPanel>
         </Border>

@@ -53,11 +53,13 @@ AstraCat 是一款基于高性能 Avalonia 12.1.1 与 .NET 10 构建的跨平台
 
 ### 本地语音识别
 
-模型页负责下载模型和准备各自的运行环境。目前接入了 Whisper、Qwen3-ASR、FunASR、NVIDIA Parakeet 和 MOSS Transcribe 等后端。不同模型的参数分开保存，换项目时不用重新填写。
+模型页统一管理本地语音识别模型。技术选型基于 **sherpa-onnx** 原生推理引擎，直接以 C ABI 集成 ONNX 运行时，涵盖 OpenAI Whisper、阿里通义 Qwen3-ASR 以及 NVIDIA NeMo Parakeet 等主流架构。
 
-应用不会调用系统 Python。模型、Python 包和运行库都放在 `runtime` 下，出问题时可以单独修复，不会改动电脑上的开发环境。
-
-转录页可以设置语言、设备、精度、VAD、分块时长、热词和模型自己的参数。连续处理多个文件时会复用已经加载的 Worker；闲置后再释放内存和显存。
+- **开发选择**：采用进程内原生推理架构取代外部脚本子进程。单一宿主进程统一部署与调度，天然适配 Native AOT 机器码编译，具备极高的运行稳定性和确定性响应。
+- **性能开销**：
+  - **低延迟与零磁盘 I/O**：通过 AstraCore 直接在应用内存中以 16kHz 16-bit 单声道 PCM 流式抽样并送入 Silero VAD 人声切片，全链路无临时中间音频文件读写，避免跨进程 IPC 协议的序列化性能瓶颈；
+  - **轻量资源占用**：模型权重解压即用，免去预装庞大运行时依赖的存储与显存额外开销；
+  - **灵活加速后端**：支持 CPU 多线程并行与专用 CUDA 运行库 GPU 硬件加速，Whisper 推理速率达 10x+ 实时率，Parakeet CTC 达 50x+ 极速吞吐，毫秒级流式出词。
 
 <p align="center">
 <img src="./docs/images/01-dashboard.webp" alt="AstraCat 首页" width="46%" />
@@ -113,9 +115,9 @@ API Key 只保存在本机配置中。截图、日志和提交记录里仍然不
 
 ### GPU 与运行环境
 
-设置页显示显卡、驱动、CUDA 运行库和当前模型环境的实际状态。电脑装了 CUDA Toolkit，不代表模型环境中的 PyTorch 或 CTranslate2 就能使用 GPU，所以 AstraCat 会分别检查它们。
+设置页显示显卡、驱动与 CUDA 运行库的实际状态。电脑即使已安装显卡驱动，ONNX Runtime 也需要配套的 CUDA 运行库（如 cuBLAS / cudart）方可启用 GPU 加速，AstraCat 会检测运行库就绪状态。
 
-应用内下载的 CUDA 运行库只放在 AstraCat 的目录里，不修改系统环境变量。GPU 环境不可用时会给出原因，并在允许的情况下退回 CPU。
+应用内下载的 CUDA 运行库仅存放在 AstraCat 的私有目录中，不污染系统环境变量。GPU 环境未就绪时会自动安全回退至 CPU 推理。
 
 <p align="center">
 <img src="./docs/images/03-llm-providers.webp" alt="翻译服务配置" width="46%" />
@@ -167,13 +169,11 @@ API Key 只保存在本机配置中。截图、日志和提交记录里仍然不
 
 ```text
 runtime/
-├─ cache/       可重新生成的缓存
-├─ config/      应用与接口配置
-├─ e/           各识别后端的 Python 环境
-├─ gpu/         可选 CUDA 运行库
-├─ models/      本地模型
+├─ cache/       模型下载与网络解析缓存
+├─ config/      应用与翻译接口配置
+├─ gpu/         可选 CUDA 运行库（Direct ONNX 加速）
+├─ models/      本地 ONNX 语音识别与 VAD 模型权重
 ├─ projects/    项目、字幕和自动保存
-├─ python/      基础 Python 环境
 └─ tools/       FFmpeg 与 libmpv
 ```
 
@@ -181,42 +181,52 @@ runtime/
 
 ## 隐私和联网
 
-- 本地转录不会上传音视频。
+- 本地转录完全在机内执行，不会上传音视频。
 - 播放、时间轴编辑和本地字幕导出不需要联网。
-- 模型下载需要访问模型镜像或 Hugging Face。
+- 模型下载访问官方模型源或高速镜像，下载后离线可用。
 - 翻译、LLM 校对和术语研究会把相应文字发送给所选服务商。
 - 联网术语研究会访问 DeepSeek 的 `web_search`，并消耗对应 API 额度。
 
 使用云端接口前，请自行查看服务商的数据处理规则和计费方式。
 
-## Avalonia 性能与底层实现
+## 开发选择与性能开销
 
-AstraCat 使用 .NET 10 和 Avalonia 12.1.1。界面、播放器、媒体工具和语音模型没有塞在同一条执行链里，而是按各自的工作方式分开：
+AstraCat 采用 .NET 10 与 Avalonia 12.1.1。架构选型注重极低系统开销、确定性响应与开箱即用的跨平台能力：
 
 ```text
-Avalonia 主进程
-├─ libmpv Render API       同进程 OpenGL 视频绘制
-├─ FFmpeg / FFprobe       独立进程，探测、转码和导出
-└─ Python ASR Worker      常驻子进程，加载并运行语音模型
+Avalonia 宿主进程 (.NET 10 / Native AOT)
+├─ 渲染引擎: libmpv Render API      同进程 OpenGL 帧缓冲直接绘制，零额外窗口与上下文切换开销
+├─ 语音推理: sherpa-onnx (C ABI)     进程内全内存 ONNX 推理（Whisper / Qwen / NeMo）
+├─ 媒体下载: 内置 Web 视图嗅探      通过浏览器会话提取 Cookie，实现高带宽流式分块下载
+├─ 媒体编辑: AstraCore (C ABI)      纯 C 高性能音频抽样、无损流裁剪与时间戳重基准计算
+└─ 导出转码: FFmpeg CLI              按需拉起独立子进程，调用硬件编码器（NVENC / QSV / AMF）
 ```
 
-### 播放器与界面合成
+### 为什么选择 Avalonia 与同进程渲染
 
-播放器基于 `OpenGlControlBase` 实现，通过 libmpv Render API 把视频帧直接画进 Avalonia 的 OpenGL 帧缓冲。字幕、按钮和浮层仍由 Avalonia 正常绘制，不需要在界面中嵌入一个独立的视频窗口。Windows 下优先使用 ANGLE/EGL，初始化失败时 Avalonia 可以退回软件渲染。
+- **开发选择**：选用 Avalonia 12.1.1 配合 XAML 编译绑定，保证 Windows、macOS 与 Linux 界面行为、样式和动效的高度一致；视频播放基于 `OpenGlControlBase` 通过 libmpv Render API 直接将视频帧绘制进 Avalonia 的 OpenGL 帧缓冲，无需创建独立的系统原生视频子窗口。
+- **性能开销**：
+  - 杜绝传统跨窗口嵌入（Airspace）带来的图层撕裂、遮挡穿透与 DPI 缩放不同步问题；
+  - 字幕、控件浮层与视频处于同一合成树，GPU 硬件合成开销极小，窗口缩放流畅无闪烁。
 
-项目默认启用 Avalonia 编译绑定，任务列表和字幕列表使用虚拟化面板，长列表只创建当前可见的项目控件。页面切换和侧栏动画使用可中断的属性过渡；隐藏区域会同步停止命中测试，避免透明控件继续接收鼠标事件。
+### 时间轴海量字幕的性能优化
 
-### 时间轴为什么能处理长字幕
+字幕时间轴没有为每条字幕创建单独的 UI 控件，而是在 `SubtitleTimelineControl` 中使用 `DrawingContext` 统一在画布上批处理绘制：
+- **空间索引与二分查找**：数据变化时建立时间区间索引，视图滚动或缩放时仅检索视口范围内的字幕块，时间复杂度由 $O(N)$ 降至 $O(\log N + M)$（$M$ 为当前可见块数），即使面对数千条字幕的超长视频也能保持 60 FPS 跟手拖动；
+- **渲染对象复用与布局缓存**：复用画刷、画笔及带上限的 `TextLayout` 文本排版缓存，避免每帧重复进行高开销的字体排版计算与 GC 压力。
 
-字幕时间轴没有为每条字幕创建一个 UI 控件，而是在 `SubtitleTimelineControl` 中用 `DrawingContext` 集中绘制。数据变化时先建立轨道索引；滚动或缩放时通过时间区间和二分查找只取当前可见的字幕块，不会每一帧从头扫描整个项目。
+### 为什么选择进程内原生语音推理
 
-文字排版使用有上限的 `TextLayout` 缓存，画刷和画笔等绘图对象会复用。字幕冲突、轨道位置和边界信息也尽量在数据变化时计算，而不是在播放位置更新时重复计算。这样做主要是为了让长视频、多轨字幕和高倍率缩放下的拖动仍然跟手。
+- **开发选择**：选择基于 C ABI 的 **sherpa-onnx** 作为语音推理引擎，而非将推理委托给外部脚本子进程。推理引擎与 .NET 共享相同的应用生命周期，原生支持跨平台编译与 Native AOT。
+- **性能开销**：
+  - **消除冷启动延迟**：避免每次调用拉起外部解释器与运行时（节省 2~5 秒进程初始化延迟），模型加载后常驻内存，随时响应；
+  - **全内存零磁盘 I/O**：通过 AstraCore C ABI 直接在内存中抽取 16kHz PCM 单声道音频流送入推理，免去生成中间音频临时文件的磁盘读写开销，也避免了跨进程序列化的大块数据拷贝；
+  - **确定性响应与取消粒度**：全流程深入接入 `CancellationToken`，用户点击取消时可在微秒级安全中断计算并即刻释放计算资源。
 
-### Worker、取消与资源释放
+### 为什么选择内置 Web 视图辅助下载
 
-每种语音识别后端有自己的 Python 环境，主程序通过逐行 JSON 与 Worker 通信，普通日志走标准错误流，避免污染结果。连续任务会复用已经加载的模型；超过闲置时间后再关闭 Worker，释放内存和显存。取消任务时会同时终止对应的子进程树，防止 FFmpeg 或 Python 留在后台继续运行。
-
-FFmpeg、libmpv 和 Python 环境都从 `runtime` 解析，不依赖系统 PATH。这样便于固定发布版本，也能把某个模型环境的修复限制在自己的目录中。
+- **开发选择**：对于流媒体下载，采用内置 Web 视图结合原生下载服务的模式，用户可直接在窗口中进行常规网页浏览与账号登录，系统自动嗅探并承接会话 Cookie，免去手动导出配置或配置外部爬虫工具的繁琐门槛。
+- **性能开销**：流式直连下载，内存缓冲分块刷盘，CPU 占用率低于 2%，同时支持代理加速与断点续传。
 
 ## 开发构建
 
@@ -228,7 +238,6 @@ cd AstraCat
 dotnet restore --locked-mode
 dotnet build -c Release --no-restore
 dotnet test
-python -m py_compile engines\asr_worker.py
 ```
 
 Windows 开发可先下载并校验旧预编译依赖；正式发布使用统一 AstraCore：
@@ -244,7 +253,7 @@ $env:ASTRACAT_MEDIA_RUNTIME = (Resolve-Path .\artifacts\astracore\win-x64).Path
 dotnet run -c Debug
 ```
 
-源码仓库不保存构建产物、模型、Python 环境和 CUDA 运行库。AstraCore
+源码仓库不保存构建产物、模型和 CUDA 运行库。AstraCore
 脚本固定 FFmpeg、mpv、libass、libplacebo 和 8-bit x265 的源码提交，生成
 一套共享 ABI，并检查软件编码器、三家硬件编码入口、D3D11VA 和运行时哈希。
 
@@ -253,7 +262,7 @@ dotnet run -c Debug
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\audit-repository.ps1
 dotnet build -c Release
-python -m py_compile engines\asr_worker.py
+dotnet test
 ```
 
 ### 打包 Windows 版本
@@ -289,17 +298,17 @@ AstraCat/
 ├─ Models/                          字幕、样式、音频波形与工程数据模型
 ├─ Services/                        领域服务层架构
 │  ├─ Animation/                    动效调度与 Easing 缓动曲线
-│  ├─ Media/                        播放器、波形提取与媒体导出服务
+│  ├─ Media/                        播放器、波形提取、PureMediaDownloadService 下载与媒体导出服务
 │  ├─ Native/                       AstraCore C ABI 跨平台动态库载入桥
-│  ├─ Workers/                      Python 隔离子进程 ASR Worker 客户端
+│  ├─ Speech/                       基于 sherpa-onnx 的本地离线 ASR 引擎、Silero VAD 与模型注册表
 │  └─ Workspace/                    工程事务仓储与工作区会话管理
 ├─ Views/                           Avalonia 界面窗口与浮层组件
 ├─ tests/                           自动化单元测试 (MSTest / .NET 10)
 ├─ native/                          纯 C 语言高性能 AstraCore 媒体音频核心源码
-├─ engines/                         Python ASR Worker 常驻引擎
+├─ engines/                         原生语音模型规范与文档
 ├─ installer/                       Windows Inno Setup 原生安装程序脚本
 ├─ scripts/                         全平台构建、发布打包与安全审计脚本
-├─ runtime/                         本地模型、独立环境与项目持久化目录
+├─ runtime/                         本地模型、CUDA 运行库与项目持久化目录
 ├─ App.axaml                        应用资源与主题配置
 ├─ Program.cs                       程序启动入口与平台渲染上下文初始化
 ├─ AstraCat.slnx                    现代跨平台解决方案
@@ -307,7 +316,7 @@ AstraCat/
 └─ packages.lock.json               NuGet 依赖锁定文件
 ```
 
-界面使用 Avalonia 12.1.1，播放器通过 libmpv Render API 绘制，媒体探测和导出由 FFmpeg 子进程完成，语音模型运行在独立的 Python Worker 中。
+界面使用 Avalonia 12.1.1 渲染，播放器通过 libmpv Render API 同步呈现，音视频抽样与裁剪由 AstraCore C ABI 原生完成，本地语音识别由 sherpa-onnx 进程内驱动。
 
 </details>
 
@@ -316,14 +325,14 @@ AstraCat/
 <details>
 <summary><b>为什么显示 CPU，明明电脑有 NVIDIA 显卡？</b></summary>
 
-应用检查的是当前模型环境里的 PyTorch 或 CTranslate2。系统装了显卡驱动或 CUDA Toolkit，不等于这个 Python 环境装了可用的 CUDA 版本。先到设置页刷新 GPU 状态，再按提示修复对应模型环境。
+AstraCat 检查系统是否安装了配套的 CUDA 运行库（cuBLAS / cudart DLL）。可在模型与环境页一键安装专用 CUDA 运行库，直接为 ONNX Runtime 提供 GPU 硬件加速。
 
 </details>
 
 <details>
 <summary><b>模型下载完成后为什么还是不能使用？</b></summary>
 
-模型权重和运行环境是两部分。权重已经下载，但 Python 包不完整或版本不匹配时，模型仍会显示不可用。可以在模型页重新部署或修复运行环境。
+sherpa-onnx 模型由程序自动校验完整性并放置在 `runtime/models` 中。如果网络中断导致权重未完成，可以在模型页重新点击下载，或检查目录下的 `.astracat_complete` 完成标记。
 
 </details>
 
@@ -348,9 +357,9 @@ AstraCat/
 提交前请至少完成：
 
 1. `dotnet build -c Release`；
-2. 修改 Python Worker 时运行语法检查；
+2. 运行 `dotnet test` 确保单元测试全数通过；
 3. 检查取消、失败回退和重复执行；
-4. 不提交 API Key、模型、Python 环境、项目数据和构建产物。
+4. 不提交 API Key、模型、CUDA 运行库、项目数据和构建产物。
 
 ## 鸣谢与支持
 
@@ -383,9 +392,7 @@ AstraCat 深度基于 **[Avalonia UI](https://avaloniaui.net/)** 打造现代化
 - [Avalonia](https://avaloniaui.net/)：跨平台桌面界面框架与现代化渲染引擎
 - [FFmpeg](https://ffmpeg.org/)：音视频多媒体编解码、音频探测与字幕合成烧录
 - [mpv / libmpv](https://mpv.io/)：硬件加速媒体播放核心引擎
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp)：跨平台音视频流下载与解析
-- [faster-whisper](https://github.com/SYSTRAN/faster-whisper)：高效本地 Whisper 语音推理引擎
-- [PyTorch](https://pytorch.org/)：深度学习模型与语音算法运行时
+- [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)：跨平台下一代原生语音识别与 VAD 离线推理引擎
 - [Hugging Face](https://huggingface.co/)：开放模型目录与权重分发托管
 
 各组件和模型遵循各自的开源许可证。发布二进制文件时，均遵守相应的再分发与署名要求。

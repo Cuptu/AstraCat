@@ -59,8 +59,7 @@
 
 - 主 EXE：36,441,600 字节，约 **34.75 MiB**。
 - 初始预览共 20 个文件，含许可证及现有媒体 DLL/CLI，约 **337.25 MiB**；首次运行后新增的 runtime 数据不计入此数字。
-- 没有携带 coreclr.dll，也不需要另装 .NET 运行时；仍需要随包的 Skia、HarfBuzz、ANGLE、libmpv、FFmpeg 等原生文件。
-- 这是原版 Avalonia 的 AOT 候选，继续保留原版媒体工具/模型部署机制。AOT 不会把 Python 模型 Worker 变成 C++，也不自动裁剪 FFmpeg/libmpv。
+- 语音识别采用基于 sherpa-onnx 的进程内 ONNX C ABI 推理，AOT 产物开箱即具备原生推理与编译绑定契约，不自动裁剪 FFmpeg/libmpv。
 
 未在本次建立同源码普通自包含包基线，因此不报告包体减少百分比或 RAM/CPU 提升。
 

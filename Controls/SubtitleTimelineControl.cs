@@ -80,6 +80,14 @@ public sealed class SubtitleTimelineControl : Control
     private static readonly Dictionary<(string Color, double Thickness), Pen> PenCache = new();
     private static readonly Pen SplitGuidePen = new(CachedBrush("#B31F77C8"), 1, DashStyle.Dash);
 
+    private StreamGeometry? _cachedWaveformGeometry;
+    private double _cachedWaveformViewStart = double.NaN;
+    private double _cachedWaveformPps = double.NaN;
+    private double _cachedWaveformRightLimit = double.NaN;
+    private double _cachedWaveformMiddle = double.NaN;
+    private double _cachedWaveformHalfHeight = double.NaN;
+    private int _cachedWaveformPeakCount = -1;
+
     public event EventHandler<double>? SeekRequested;
     public event EventHandler<int>? SelectedCueChanged;
     public event EventHandler<int>? CueEditRequested;
@@ -613,6 +621,7 @@ public sealed class SubtitleTimelineControl : Control
         _peaks = peaks;
         _waveformDurationSeconds = Math.Max(0.001, durationSeconds);
         _durationSeconds = Math.Max(_durationSeconds, durationSeconds);
+        _cachedWaveformGeometry = null;
         InvalidateVisual();
         ViewportChanged?.Invoke(this, EventArgs.Empty);
     }
@@ -836,19 +845,51 @@ public sealed class SubtitleTimelineControl : Control
         }
 
         var pen = CachedPen("#607C94A8", 1.6);
-        for (var x = (int)TrackHeaderWidth; x < (int)rightLimit; x += 2)
+
+        if (_cachedWaveformGeometry is not null &&
+            _cachedWaveformPeakCount == _peaks.Count &&
+            Math.Abs(_cachedWaveformViewStart - _viewStartSeconds) < 0.0001 &&
+            Math.Abs(_cachedWaveformPps - _pixelsPerSecond) < 0.0001 &&
+            Math.Abs(_cachedWaveformRightLimit - rightLimit) < 0.5 &&
+            Math.Abs(_cachedWaveformMiddle - middle) < 0.5 &&
+            Math.Abs(_cachedWaveformHalfHeight - halfHeight) < 0.5)
         {
-            var startTime = XToTime(x);
-            if (startTime >= _waveformDurationSeconds) break;
-            var endTime = Math.Min(_waveformDurationSeconds, XToTime(x + 2));
-            var firstSample = (int)Math.Clamp(Math.Floor(startTime / _waveformDurationSeconds * _peaks.Count), 0, _peaks.Count - 1);
-            var lastSample = (int)Math.Clamp(Math.Ceiling(endTime / _waveformDurationSeconds * _peaks.Count) - 1, firstSample, _peaks.Count - 1);
-            var peak = 0f;
-            for (var sample = firstSample; sample <= lastSample; sample++)
-                peak = Math.Max(peak, _peaks[sample]);
-            var amplitude = Math.Sqrt(Math.Clamp(peak, 0, 1)) * halfHeight;
-            context.DrawLine(pen, new Point(x, middle - amplitude), new Point(x, middle + amplitude));
+            context.DrawGeometry(null, pen, _cachedWaveformGeometry);
+            return;
         }
+
+        var geometry = new StreamGeometry();
+        using (var ctx = geometry.Open())
+        {
+            for (var x = (int)TrackHeaderWidth; x < (int)rightLimit; x += 2)
+            {
+                var startTime = XToTime(x);
+                if (startTime >= _waveformDurationSeconds) break;
+                var endTime = Math.Min(_waveformDurationSeconds, XToTime(x + 2));
+                var firstSample = (int)Math.Clamp(Math.Floor(startTime / _waveformDurationSeconds * _peaks.Count), 0, _peaks.Count - 1);
+                var lastSample = (int)Math.Clamp(Math.Ceiling(endTime / _waveformDurationSeconds * _peaks.Count) - 1, firstSample, _peaks.Count - 1);
+                var peak = 0f;
+                for (var sample = firstSample; sample <= lastSample; sample++)
+                    peak = Math.Max(peak, _peaks[sample]);
+                var amplitude = Math.Sqrt(Math.Clamp(peak, 0, 1)) * halfHeight;
+                if (amplitude > 0.5)
+                {
+                    ctx.BeginFigure(new Point(x, middle - amplitude), isFilled: false);
+                    ctx.LineTo(new Point(x, middle + amplitude));
+                    ctx.EndFigure(isClosed: false);
+                }
+            }
+        }
+
+        _cachedWaveformGeometry = geometry;
+        _cachedWaveformPeakCount = _peaks.Count;
+        _cachedWaveformViewStart = _viewStartSeconds;
+        _cachedWaveformPps = _pixelsPerSecond;
+        _cachedWaveformRightLimit = rightLimit;
+        _cachedWaveformMiddle = middle;
+        _cachedWaveformHalfHeight = halfHeight;
+
+        context.DrawGeometry(null, pen, geometry);
     }
 
     private void DrawTrackRows(DrawingContext context, Rect bounds)
@@ -950,8 +991,9 @@ public sealed class SubtitleTimelineControl : Control
                     new Rect(rect.Right - 9, rect.Top + 1, 8, rect.Height - 2), 2, 2);
             }
             var text = string.IsNullOrWhiteSpace(cue.Translated) ? cue.Original : cue.Translated;
+            if (text.IndexOf('\n') >= 0) text = text.Replace('\n', ' ');
             var playing = _positionSeconds * 1000 >= layout.Start && _positionSeconds * 1000 <= layout.End;
-            DrawText(context, text.Replace('\n', ' '), new Point(rect.Left + 10, rect.Top + 7), 10.5,
+            DrawText(context, text, new Point(rect.Left + 10, rect.Top + 7), 10.5,
                 isMuted ? "#808080" : (playing ? strokeColor : "#FFFFFF"), Math.Max(0, rect.Width - 15));
             if (selected)
                 context.DrawRectangle(null, CachedPen("#FF6B2B", 2.5),
@@ -1071,14 +1113,15 @@ public sealed class SubtitleTimelineControl : Control
 
     private TextLayout GetTextLayout(string text, double size, string color, double width, bool centered)
     {
-        var key = (text, size, color, width, centered);
+        var quantizedWidth = Math.Max(1.0, Math.Round(width / 4.0) * 4.0);
+        var key = (text, size, color, quantizedWidth, centered);
         if (!_textLayouts.TryGetValue(key, out var layout))
         {
             if (_textLayouts.Count >= TextLayoutCacheLimit) _textLayouts.Clear();
             layout = new TextLayout(text, centered ? TimelineSemiboldTypeface : TimelineTypeface, size,
                 CachedBrush(color), centered ? TextAlignment.Center : TextAlignment.Left,
                 TextWrapping.NoWrap, centered ? TextTrimming.None : TextTrimming.CharacterEllipsis,
-                maxWidth: width, maxHeight: size + 5);
+                maxWidth: quantizedWidth, maxHeight: size + 5);
             _textLayouts[key] = layout;
         }
         return layout;

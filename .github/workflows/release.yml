@@ -32,11 +32,6 @@ jobs:
         with:
           dotnet-version: 10.0.400
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
       - name: Resolve package version
         shell: pwsh
         run: |
@@ -57,11 +52,9 @@ jobs:
       - name: Restore locked dependencies
         run: dotnet restore AstraCat.csproj -r win-x64 --locked-mode
 
-      - name: Build and check worker
+      - name: Build
         shell: pwsh
-        run: |
-          dotnet build AstraCat.csproj -c Release --no-restore -p:ContinuousIntegrationBuild=true
-          python -m py_compile engines/asr_worker.py
+        run: dotnet build AstraCat.csproj -c Release --no-restore -p:ContinuousIntegrationBuild=true
 
       - name: Download verified native dependencies
         shell: pwsh

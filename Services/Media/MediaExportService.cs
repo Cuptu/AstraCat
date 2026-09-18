@@ -344,8 +344,11 @@ public sealed class MediaExportService
         using var process = Process.Start(info);
         if (process is null) return Array.Empty<EmbeddedSubtitleTrack>();
         using var reg = cancellationToken.Register(() => TryTerminate(process));
-        var output = await process.StandardOutput.ReadToEndAsync(cancellationToken).ConfigureAwait(false);
+        var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+        var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
         await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+        var output = await outputTask.ConfigureAwait(false);
+        await errorTask.ConfigureAwait(false);
         if (process.ExitCode != 0 || string.IsNullOrWhiteSpace(output)) return Array.Empty<EmbeddedSubtitleTrack>();
 
         try
@@ -393,7 +396,9 @@ public sealed class MediaExportService
         using var process = Process.Start(info);
         if (process is null) return false;
         using var reg = cancellationToken.Register(() => TryTerminate(process));
+        var errorDrain = process.StandardError.ReadToEndAsync(cancellationToken);
         await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+        await errorDrain.ConfigureAwait(false);
         return process.ExitCode == 0 && File.Exists(outputPath);
     }
 
@@ -1155,7 +1160,9 @@ public sealed class MediaExportService
         using var process = Process.Start(info);
         if (process is null) return false;
         using var reg = cancellationToken.Register(() => TryTerminate(process));
+        var errorDrain = process.StandardError.ReadToEndAsync(cancellationToken);
         await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+        await errorDrain.ConfigureAwait(false);
         return process.ExitCode == 0 && File.Exists(outputPath);
     }
 
@@ -1191,7 +1198,9 @@ public sealed class MediaExportService
         using var process = Process.Start(info);
         if (process is null) return false;
         using var reg = cancellationToken.Register(() => TryTerminate(process));
+        var errorDrain = process.StandardError.ReadToEndAsync(cancellationToken);
         await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+        await errorDrain.ConfigureAwait(false);
         return process.ExitCode == 0 && File.Exists(outputWavPath);
     }
 
@@ -1224,7 +1233,9 @@ public sealed class MediaExportService
         using var process = Process.Start(info);
         if (process is null) return false;
         using var reg = cancellationToken.Register(() => TryTerminate(process));
+        var errorDrain = process.StandardError.ReadToEndAsync(cancellationToken);
         await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+        await errorDrain.ConfigureAwait(false);
         return process.ExitCode == 0 && File.Exists(outputAudio);
     }
 }

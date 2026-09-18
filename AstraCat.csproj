@@ -20,7 +20,11 @@
     <PackageReference Include="Avalonia.Controls.ColorPicker" Version="12.1.1" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
+    <PackageReference Include="Avalonia.Controls.WebView" Version="12.1.0" />
     <PackageReference Include="Material.Icons.Avalonia" Version="3.0.2" />
+    <PackageReference Include="org.k2fsa.sherpa.onnx" Version="1.13.8" />
+    <PackageReference Include="YoutubeExplode" Version="6.6.2" />
+    <PackageReference Include="YoutubeExplode.Converter" Version="6.6.2" />
   </ItemGroup>
 
   <ItemGroup>

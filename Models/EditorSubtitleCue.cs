@@ -40,22 +40,11 @@ public sealed class EditorSubtitleCue : INotifyPropertyChanged
             if (_isActive == value) return;
             _isActive = value;
             OnPropertyChanged();
-            OnPropertyChanged(nameof(IndicatorColor));
             OnPropertyChanged(nameof(IndicatorOpacity));
             OnPropertyChanged(nameof(IndicatorWidth));
-            OnPropertyChanged(nameof(LanguageLabel));
-            OnPropertyChanged(nameof(LanguageForeground));
-            OnPropertyChanged(nameof(LanguageBackground));
             OnPropertyChanged(nameof(DisplayForeground));
-            OnPropertyChanged(nameof(DisplayFontSize));
-            OnPropertyChanged(nameof(DisplayFontWeight));
             OnPropertyChanged(nameof(TimeForeground));
             OnPropertyChanged(nameof(LanguageOpacity));
-            OnPropertyChanged(nameof(DisplayText));
-            OnPropertyChanged(nameof(UsesTranslatedText));
-            OnPropertyChanged(nameof(UsesOriginalText));
-            OnPropertyChanged(nameof(ShowTranslatedEditor));
-            OnPropertyChanged(nameof(ShowOriginalEditor));
         }
     }
 

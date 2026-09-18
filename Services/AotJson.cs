@@ -60,6 +60,7 @@ internal static class AotJson
 [JsonSerializable(typeof(DownloadInspectResult))]
 [JsonSerializable(typeof(DownloadProgressEvent))]
 [JsonSerializable(typeof(DownloadCompletedResult))]
+[JsonSerializable(typeof(DownloadRequest))]
 internal partial class AppJsonContext : JsonSerializerContext;
 
 public sealed record MediaAudioTrack(long Id, string Title, string Language, bool IsDefault);
@@ -90,3 +91,13 @@ public sealed record DownloadCompletedResult(
     string? SubtitlePath,
     string? Title,
     double Duration);
+
+public sealed record DownloadRequest(
+    string Url,
+    string OutputDir,
+    bool AudioOnly = false,
+    bool WriteSubtitles = true,
+    string SubLangs = "zh.*,en.*",
+    string? Proxy = null,
+    string? CookiesFromBrowser = null,
+    string? RawCookies = null);

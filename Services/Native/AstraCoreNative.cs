@@ -233,11 +233,13 @@ internal sealed class AstraCoreNative
             return false;
         }
 
+        var managedPeaks = new float[maxPeaks];
+        var handle = GCHandle.Alloc(managedPeaks, GCHandleType.Pinned);
         var pathPointer = Marshal.StringToCoTaskMemUTF8(path);
-        var peaksBuffer = Marshal.AllocHGlobal(maxPeaks * sizeof(float));
         var errorPointer = Marshal.AllocHGlobal(1024);
         try
         {
+            var peaksBuffer = handle.AddrOfPinnedObject();
             int count;
             if (native._extractWaveformCancel is not null)
             {
@@ -265,14 +267,21 @@ internal sealed class AstraCoreNative
                 return false;
             }
 
-            peaks = new float[count];
-            Marshal.Copy(peaksBuffer, peaks, 0, count);
+            if (count == maxPeaks)
+            {
+                peaks = managedPeaks;
+            }
+            else
+            {
+                peaks = new float[count];
+                Array.Copy(managedPeaks, peaks, count);
+            }
             return true;
         }
         finally
         {
+            handle.Free();
             Marshal.FreeHGlobal(errorPointer);
-            Marshal.FreeHGlobal(peaksBuffer);
             Marshal.FreeCoTaskMem(pathPointer);
         }
     }

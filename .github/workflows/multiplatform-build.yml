@@ -49,8 +49,6 @@ jobs:
         run: |
           mkdir -p dist/AstraCat-linux-x64/runtime/tools/astracore/linux-x64
           curl -sL https://github.com/Cuptu/AstraCore/releases/download/v0.1.0/AstraCore-linux-x64.tar.gz | tar -xz -C dist/AstraCat-linux-x64/runtime/tools/astracore/linux-x64/
-          mkdir -p dist/AstraCat-linux-x64/engines
-          cp engines/asr_worker.py dist/AstraCat-linux-x64/engines/
           cp LICENSE dist/AstraCat-linux-x64/
           cp README.md dist/AstraCat-linux-x64/
           cp THIRD_PARTY_NOTICES.md dist/AstraCat-linux-x64/
@@ -150,8 +148,6 @@ jobs:
         run: |
           mkdir -p dist/AstraCat-osx-arm64/runtime/tools/astracore/osx-arm64
           curl -sL https://github.com/Cuptu/AstraCore/releases/download/v0.1.0/AstraCore-osx-arm64.tar.gz | tar -xz -C dist/AstraCat-osx-arm64/runtime/tools/astracore/osx-arm64/
-          mkdir -p dist/AstraCat-osx-arm64/engines
-          cp engines/asr_worker.py dist/AstraCat-osx-arm64/engines/
           cp LICENSE dist/AstraCat-osx-arm64/
           cp README.md dist/AstraCat-osx-arm64/
           cp THIRD_PARTY_NOTICES.md dist/AstraCat-osx-arm64/

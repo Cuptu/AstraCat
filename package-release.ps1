@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    AstraCat 一键打包分发脚本 (.NET 10 + libmpv Render API + FFmpeg，去除独立 mpv.exe、Python 和 AI 模型权重)
+    AstraCat 一键打包分发脚本 (.NET 10 + libmpv Render API + FFmpeg + sherpa-onnx)
     自动生成：
       1. dist/AstraCat-v<Version>-Setup.exe (Inno Setup 安装向导程序)
       2. dist/AstraCat-v<Version>-win-x64.zip (免安装绿色包)
@@ -268,26 +268,6 @@ $expectedEglBridgeHash = "22005170E92E7629012A7A524D983632383242DC684EFA80A1C2FD
 $actualEglBridgeHash = (Get-FileHash -Algorithm SHA256 $eglBridgePath).Hash
 if ($actualEglBridgeHash -ne $expectedEglBridgeHash) {
     throw "发布失败：libEGL.dll SHA-256 不符合固定桥接版本：$actualEglBridgeHash"
-}
-
-# 补充 engines 脚本与预设 runtime 目录结构
-$enginesTarget = Join-Path $layoutDir "engines"
-New-Item -ItemType Directory -Path $enginesTarget -Force | Out-Null
-Copy-Item (Join-Path $rootDir "engines\asr_worker.py") $enginesTarget
-if (Test-Path (Join-Path $rootDir "engines\download_worker.py")) {
-    Copy-Item (Join-Path $rootDir "engines\download_worker.py") $enginesTarget
-}
-if (Test-Path (Join-Path $rootDir "engines\README.md")) {
-    Copy-Item (Join-Path $rootDir "engines\README.md") $enginesTarget
-}
-
-# 若存在预备好的内置精简 Python + yt-dlp 运行时，打包至发布包
-$embedPythonSource = Join-Path $rootDir "runtime\python-embed"
-if (Test-Path (Join-Path $embedPythonSource "python.exe")) {
-    $embedPythonTarget = Join-Path $layoutDir "runtime\python-embed"
-    New-Item -ItemType Directory -Path $embedPythonTarget -Force | Out-Null
-    Copy-Item -Path (Join-Path $embedPythonSource "*") -Destination $embedPythonTarget -Recurse -Force
-    Write-Host "   已内置精简 Python + yt-dlp 运行时 (开箱即用)" -ForegroundColor Gray
 }
 
 New-Item -ItemType Directory -Path (Join-Path $layoutDir "runtime\models") -Force | Out-Null

@@ -1427,6 +1427,18 @@ public partial class MainWindow
 
     private void WorkspaceCue_OnPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        // 忽略纯 UI 交互态属性变更，防止视频播放高亮切换反向触发自动保存与无序重绘
+        if (e.PropertyName is nameof(EditorSubtitleCue.IsActive)
+            or nameof(EditorSubtitleCue.IsEditing)
+            or nameof(EditorSubtitleCue.IndicatorOpacity)
+            or nameof(EditorSubtitleCue.IndicatorWidth)
+            or nameof(EditorSubtitleCue.DisplayForeground)
+            or nameof(EditorSubtitleCue.TimeForeground)
+            or nameof(EditorSubtitleCue.LanguageOpacity))
+        {
+            return;
+        }
+
         // The timeline already invalidates once per pointer frame.  Refreshing and
         // restarting the autosave timer for every property notification made a
         // captured drag feel sticky, especially when moving a subtitle group.
@@ -1445,7 +1457,6 @@ public partial class MainWindow
         _workspaceInlineEditingCueIndex = index;
         _workspaceInlineEditingTranslated = !string.IsNullOrWhiteSpace(cue.Translated);
         WorkspaceCueEditTextBox.Text = _workspaceInlineEditingTranslated ? cue.Translated : cue.Original;
-        WorkspaceCueEditCountText.Text = (WorkspaceCueEditTextBox.Text?.Length ?? 0).ToString(CultureInfo.InvariantCulture);
         WorkspaceCueInlineEditor.IsVisible = true;
         PositionWorkspaceCueInlineEditor();
         Dispatcher.UIThread.Post(() =>

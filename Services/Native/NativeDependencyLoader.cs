@@ -21,13 +21,19 @@ internal static class NativeDependencyLoader
         return NativeLibrary.Load(libraryPath);
     }
 
+    private static bool _defaultDllDirectoriesConfigured;
+
     private static void RegisterWindowsDirectory(string directory)
     {
         lock (Sync)
         {
             if (RegisteredDirectories.Contains(directory)) return;
-            if (!SetDefaultDllDirectories(LoadLibrarySearchDefaultDirs | LoadLibrarySearchUserDirs))
-                throw new Win32Exception(Marshal.GetLastWin32Error(), "无法启用安全的原生 DLL 搜索策略。");
+            if (!_defaultDllDirectoriesConfigured)
+            {
+                if (!SetDefaultDllDirectories(LoadLibrarySearchDefaultDirs | LoadLibrarySearchUserDirs))
+                    throw new Win32Exception(Marshal.GetLastWin32Error(), "无法启用安全的原生 DLL 搜索策略。");
+                _defaultDllDirectoriesConfigured = true;
+            }
             if (AddDllDirectory(directory) == IntPtr.Zero)
                 throw new Win32Exception(Marshal.GetLastWin32Error(), $"无法注册 AstraCore DLL 目录：{directory}");
             RegisteredDirectories.Add(directory);

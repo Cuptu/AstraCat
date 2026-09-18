@@ -512,9 +512,10 @@ public sealed class MpvPlayerService : IAsyncDisposable
         try
         {
             _native.RenderContextUpdate(_renderContext);
-            Marshal.StructureToPtr(
-                new MpvOpenGlFbo { Fbo = framebuffer, Width = width, Height = height, InternalFormat = 0 },
-                _renderFbo, false);
+            Marshal.WriteInt32(_renderFbo, 0, framebuffer);
+            Marshal.WriteInt32(_renderFbo, 4, width);
+            Marshal.WriteInt32(_renderFbo, 8, height);
+            Marshal.WriteInt32(_renderFbo, 12, 0);
             Check(_native.RenderContextRender(_renderContext, _renderParameters), "mpv_render_context_render");
             // Avalonia presents the shared surface later; reporting a swap here
             // would provide mpv a timestamp that is earlier than the real flip.

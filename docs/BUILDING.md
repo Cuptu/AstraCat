@@ -6,7 +6,7 @@
 
 应提交：
 
-- C#、Avalonia XAML 和 Python Worker 源码；
+- C# 和 Avalonia XAML 源码；
 - `Assets`、`docs/images`、安装脚本和项目文档；
 - `AstraCat.csproj`、`packages.lock.json` 与 `global.json`；
 - `.github/workflows` 和 `scripts`；
@@ -15,7 +15,7 @@
 不应提交：
 
 - `bin`、`obj`、`dist`、`artifacts`；
-- `runtime` 中的模型、Python 环境、CUDA 运行库、配置、缓存和项目数据；
+- `runtime` 中的模型、CUDA 运行库、配置、缓存和项目数据；
 - FFmpeg、libmpv 等大体积二进制；
 - API Key、`.env`、日志、播放器诊断结果和本机绝对路径；
 - `runtimes` 中的重复原生库。
@@ -30,12 +30,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\audit-repository.p
 
 ## 本机构建
 
-环境要求：Windows x64、.NET 10 SDK 以及 Python 3.12 或更高版本。SDK 版本由 `global.json` 固定。
+环境要求：.NET 10 SDK（版本由 `global.json` 固定）。
 
 ```powershell
 dotnet restore --locked-mode
 dotnet build -c Release --no-restore
-python -m py_compile engines\asr_worker.py
+dotnet test
 ```
 
 普通源码构建不需要下载模型、FFmpeg 或 libmpv。要启动播放器功能，先准备固定版本的原生依赖：
@@ -74,7 +74,7 @@ AstraCat-v0.1.0-DEV-SHA256.txt
 1. 仓库内容审计；
 2. 按 `packages.lock.json` 还原 NuGet；
 3. Release 编译；
-4. Python Worker 语法检查。
+4. 自动化单元测试 (`dotnet test`)。
 
 `Build Windows release` 工作流有两种用法：
 
@@ -124,6 +124,6 @@ git push -u origin main
 
 这里的 `git reset --mixed` 只把 Git 的提交起点和暂存区对齐到远端 `main`，不会改写当前工作目录中的源码。
 
-执行 `git add .` 后必须检查暂存区。若看到 `runtime/models`、`runtime/python`、`runtime/config`、`bin`、`obj`、`dist`、DLL、EXE、ZIP、日志或用户项目文件，先停止提交并检查 `.gitignore`。
+执行 `git add .` 后必须检查暂存区。若看到 `runtime/models`、`runtime/config`、`bin`、`obj`、`dist`、DLL、EXE、ZIP、日志或用户项目文件，先停止提交并检查 `.gitignore`。
 
 不要使用强制推送覆盖远端历史。首次推送后，先在 GitHub 的 Actions 页面确认 `CI` 通过，再创建 DEV 标签。

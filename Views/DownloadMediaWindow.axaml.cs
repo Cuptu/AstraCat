@@ -13,13 +13,33 @@ public sealed record DownloadMediaResult(string MediaPath, string? SubtitlePath,
 
 public partial class DownloadMediaWindow : Window
 {
-    private readonly DownloadWorkerClient _client = new();
     private CancellationTokenSource? _activeCts;
     private DownloadInspectResult? _lastInspectResult;
+    private string? _capturedCookies;
 
     public DownloadMediaWindow()
     {
         InitializeComponent();
+    }
+
+    private async void WebAssistButton_OnClick(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var initialUrl = UrlInput.Text?.Trim();
+            var webDialog = new WebDownloadWindow(initialUrl);
+            var result = await webDialog.ShowDialog<WebDownloadCaptureResult?>(this);
+            if (result != null && !string.IsNullOrWhiteSpace(result.Url))
+            {
+                UrlInput.Text = result.Url;
+                _capturedCookies = result.Cookies;
+                InspectButton_OnClick(InspectButton, e);
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorSummaryText.Text = $"打开网页助手失败: {ex.Message}";
+        }
     }
 
     private async void PasteButton_OnClick(object? sender, RoutedEventArgs e)
@@ -60,9 +80,11 @@ public partial class DownloadMediaWindow : Window
         {
             var proxy = string.IsNullOrWhiteSpace(ProxyInput.Text) ? null : ProxyInput.Text.Trim();
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            var result = await _client.InspectAsync(url, proxy, token: cts.Token);
-            _lastInspectResult = result;
 
+            // 纯 C# 原生媒体下载服务
+            var result = await PureMediaDownloadService.Instance.InspectAsync(url, proxy, rawCookies: _capturedCookies, token: cts.Token);
+
+            _lastInspectResult = result;
             MediaTitleText.Text = result.Title ?? "未命名媒体";
             var duration = TimeSpan.FromSeconds(result.Duration);
             MediaDurationText.Text = $"时长: {(int)duration.TotalMinutes:D2}:{duration.Seconds:D2}";
@@ -114,7 +136,8 @@ public partial class DownloadMediaWindow : Window
             OutputDir: downloadDir,
             AudioOnly: audioOnly,
             WriteSubtitles: writeSubs,
-            Proxy: proxy);
+            Proxy: proxy,
+            RawCookies: _capturedCookies);
 
         var progress = new Progress<DownloadProgressEvent>(ev =>
         {
@@ -134,7 +157,9 @@ public partial class DownloadMediaWindow : Window
 
         try
         {
-            var res = await _client.DownloadAsync(request, progress, token);
+            // 纯 C# 原生媒体下载服务
+            var res = await PureMediaDownloadService.Instance.DownloadAsync(request, progress, token: token);
+
             if (string.IsNullOrWhiteSpace(res.MediaPath) || !File.Exists(res.MediaPath))
             {
                 throw new FileNotFoundException("未找到下载生成的媒体文件。");
@@ -181,7 +206,6 @@ public partial class DownloadMediaWindow : Window
     {
         _activeCts?.Cancel();
         _activeCts?.Dispose();
-        _client.Dispose();
         base.OnClosed(e);
     }
 }

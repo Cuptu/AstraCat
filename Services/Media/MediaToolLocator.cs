@@ -80,52 +80,6 @@ internal static class MediaToolLocator
         Path.Combine(AppContext.BaseDirectory, "runtime", "tools", "ffmpeg", Executable("ffprobe")),
         Path.Combine(Environment.CurrentDirectory, "runtime", "tools", "ffmpeg", Executable("ffprobe")));
 
-    public static string? FindDownloadPython()
-    {
-        var pyName = Executable("python");
-        var appRoot = FindAppRoot();
-        var candidates = new List<string>
-        {
-            Path.Combine(AppContext.BaseDirectory, "runtime", "python-embed", pyName),
-            Path.Combine(appRoot, "runtime", "python-embed", pyName),
-            Path.Combine(Environment.CurrentDirectory, "runtime", "python-embed", pyName),
-            Path.Combine(AppContext.BaseDirectory, "runtime", "python", "Scripts", pyName),
-            Path.Combine(appRoot, "runtime", "python", "Scripts", pyName),
-            Path.Combine(Environment.CurrentDirectory, "runtime", "python", "Scripts", pyName),
-            Path.Combine(AppContext.BaseDirectory, "runtime", "python", pyName),
-            Path.Combine(appRoot, "runtime", "python", pyName),
-            Path.Combine(Environment.CurrentDirectory, "runtime", "python", pyName),
-            Path.Combine(AppContext.BaseDirectory, "runtime", "python", "bin", "python3"),
-            Path.Combine(appRoot, "runtime", "python", "bin", "python3"),
-            Path.Combine(Environment.CurrentDirectory, "runtime", "python", "bin", "python3"),
-        };
-
-        var pythonLocation = Environment.GetEnvironmentVariable("pythonLocation");
-        if (!string.IsNullOrWhiteSpace(pythonLocation))
-        {
-            var trimmedLocation = pythonLocation.Trim().Trim('"');
-            candidates.Add(Path.Combine(trimmedLocation, pyName));
-            candidates.Add(Path.Combine(trimmedLocation, "bin", "python3"));
-            candidates.Add(Path.Combine(trimmedLocation, "Scripts", pyName));
-        }
-
-        return FindFile(candidates.ToArray())
-            ?? FindFromSystemPath("python")
-            ?? FindFromSystemPath("python3");
-    }
-
-    public static string? FindDownloadWorker()
-    {
-        var appRoot = FindAppRoot();
-        var candidates = new[]
-        {
-            Path.Combine(AppContext.BaseDirectory, "engines", "download_worker.py"),
-            Path.Combine(appRoot, "engines", "download_worker.py"),
-            Path.Combine(Environment.CurrentDirectory, "engines", "download_worker.py"),
-        };
-        return FindFile(candidates);
-    }
-
     private static string FindAppRoot()
     {
         foreach (var start in new[] { AppContext.BaseDirectory, Environment.CurrentDirectory })
@@ -134,8 +88,8 @@ internal static class MediaToolLocator
             var directory = new DirectoryInfo(start);
             while (directory is not null)
             {
-                if (File.Exists(Path.Combine(directory.FullName, "engines", "download_worker.py")) ||
-                    File.Exists(Path.Combine(directory.FullName, "engines", "asr_worker.py")))
+                if (Directory.Exists(Path.Combine(directory.FullName, "runtime")) ||
+                    File.Exists(Path.Combine(directory.FullName, "AstraCat.csproj")))
                     return directory.FullName;
                 directory = directory.Parent;
             }

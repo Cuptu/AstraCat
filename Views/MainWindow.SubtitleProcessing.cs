@@ -941,7 +941,7 @@ public partial class MainWindow
                         recovered[item.Id] = parts;
                 }
             }
-            catch (Exception exception) when (exception is TimeoutException or JsonException or InvalidDataException or HttpRequestException)
+            catch (Exception exception) when (exception is TimeoutException or JsonException or InvalidDataException or HttpRequestException or InvalidOperationException)
             {
                 // Retry missing entries once, then preserve the original cue so partial failures do not lose text.
             }
@@ -1056,7 +1056,7 @@ public partial class MainWindow
                         recovered[item.Id] = corrected;
                 }
             }
-            catch (Exception exception) when (exception is TimeoutException or JsonException or InvalidDataException or HttpRequestException)
+            catch (Exception exception) when (exception is TimeoutException or JsonException or InvalidDataException or HttpRequestException or InvalidOperationException)
             {
                 // Preserve unresolved cues exactly as they were after the final retry.
             }

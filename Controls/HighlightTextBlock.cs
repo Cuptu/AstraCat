@@ -121,9 +121,16 @@ public class HighlightTextBlock : TextBlock
             return;
         }
 
+        var trimmedQuery = query.Trim();
+        if (text.IndexOf(trimmedQuery, StringComparison.OrdinalIgnoreCase) < 0)
+        {
+            Inlines.Add(new Run(text));
+            return;
+        }
+
         try
         {
-            var pattern = Regex.Escape(query.Trim());
+            var pattern = Regex.Escape(trimmedQuery);
             var matches = Regex.Matches(text, pattern, RegexOptions.IgnoreCase);
             if (matches.Count == 0)
             {
